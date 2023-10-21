@@ -3,10 +3,10 @@ FUNCTIONS := users points
 GO := go
 
 build:
-		${MAKE} ${MAKEOPTS} $(foreach function,${FUNCTIONS}, build-${function})
+	${MAKE} ${MAKEOPTS} $(foreach function,${FUNCTIONS}, build-${function})
 
 build-%:
-		cd functions/$* && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 ${GO} build -o bootstrap
+	cd functions/$* && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 ${GO} build -o bootstrap
 
 star-local:
 	@sam local start-api --env-vars env-vars.json
@@ -32,7 +32,7 @@ clean:
 deploy:
 	@sam deploy --stack-name ${STACK_NAME};
 
-deploy-auto:
+deploy-auto: build
 	@sam deploy --stack-name ${STACK_NAME} --no-confirm-changeset --no-fail-on-empty-changeset;
 
 delete:

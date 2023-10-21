@@ -30,10 +30,10 @@ clean:
 	@rm $(foreach function,${FUNCTIONS}, functions/${function}/bootstrap)
 
 deploy:
-	if [ -f samconfig.toml ]; \
-		then sam deploy --stack-name ${STACK_NAME}; \
-		else sam deploy -g --stack-name ${STACK_NAME}; \
-  fi
+	@sam deploy --stack-name ${STACK_NAME};
+
+deploy-auto:
+	@sam deploy --stack-name ${STACK_NAME} --no-confirm-changeset --no-fail-on-empty-changeset;
 
 delete:
 	@sam delete --stack-name ${STACK_NAME}

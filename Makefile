@@ -8,6 +8,9 @@ build:
 build-%:
 		cd functions/$* && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 ${GO} build -o bootstrap
 
+star-local:
+	@sam local start-api --env-vars env-vars.json
+
 invoke:
 	@sam local invoke --env-vars env-vars.json GetProductsFunction
 
@@ -38,3 +41,9 @@ delete:
 .PHONY: tidy
 tidy:
 	@$(foreach dir,$(MODULE_DIRS),(cd $(dir) && go mod tidy) &&) true
+
+load-test:
+	API_URL=$$(aws cloudformation describe-stacks --stack-name $(STACK_NAME) \
+	  --region $(REGION) \
+		--query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+		--output text) artillery run load-testing/load-test.yml

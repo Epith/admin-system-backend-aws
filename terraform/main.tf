@@ -49,3 +49,48 @@ resource "aws_dynamodb_table" "points_table" {
         Name = "points"
     }
 }
+
+resource "aws_iam_role" "dynamodb_access_role" {
+  name = "DynamoDBAccessRole"
+
+  assume_role_policy = <<EOF
+    {
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+        "Effect": "Allow",
+        "Principal": {
+            "Service": "lambda.amazonaws.com"
+        },
+        "Action": "sts:AssumeRole"
+        }
+    ]
+    }
+    EOF
+}
+
+resource "aws_iam_policy" "dynamodb_access_policy" {
+  name        = "DynamoDBAccessPolicy"
+  description = "Policy to allow read and write access to DynamoDB table"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+        ],
+        Effect   = "Allow",
+        Resource = aws_dynamodb_table.users_table.arn,
+      },
+    ],
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "attach_dynamodb_access_policy" {
+  policy_arn = aws_iam_policy.dynamodb_access_policy.arn
+  role       = aws_iam_role.dynamodb_access_role.name
+}

@@ -15,7 +15,7 @@ Resources:
   GetPointsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/points/
+      CodeUri: functions/get-points/
       Events:
         Api:
           Type: HttpApi
@@ -28,7 +28,7 @@ Resources:
   GetUsersFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/users/
+      CodeUri: functions/get-users/
       Events:
         Api:
           Type: HttpApi

@@ -8,23 +8,11 @@ build:
 build-%:
 	cd functions/$* && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 ${GO} build -o bootstrap
 
-star-local:
+start-local:
 	@sam local start-api --env-vars env-vars.json
 
-invoke:
-	@sam local invoke --env-vars env-vars.json GetProductsFunction
-
-invoke-put:
-	@sam local invoke --env-vars env-vars.json --event functions/put-product/event.json PutProductFunction
-
 invoke-get:
-	@sam local invoke --env-vars env-vars.json --event functions/get-product/event.json GetProductFunction
-
-invoke-delete:
-	@sam local invoke --env-vars env-vars.json --event functions/delete-product/event.json DeleteProductFunction
-
-invoke-stream:
-	@sam local invoke --env-vars env-vars.json --event functions/products-stream/event.json DDBStreamsFunction
+	@sam local invoke --env-vars env-vars.json GetProductsFunction
 
 clean:
 	@rm $(foreach function,${FUNCTIONS}, functions/${function}/bootstrap)

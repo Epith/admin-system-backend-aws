@@ -12,7 +12,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	sourceIP := request.RequestContext.Identity.SourceIP
 
 	if sourceIP == "" {
-		greeting = "Hello, Points updated!\n"
+		greeting = "Hello, Points updated again!\n"
 	} else {
 		greeting = fmt.Sprintf("Hello from Points! This call is from %s!\n", sourceIP)
 	}

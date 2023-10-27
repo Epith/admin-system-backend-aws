@@ -28,10 +28,11 @@ resource "aws_dynamodb_table" "users_table" {
 resource "aws_dynamodb_table" "points_table" {
     name = "points"
     billing_mode = "PAY_PER_REQUEST"
-    hash_key = "id"
+    hash_key = "user_id"
+    range_key = "point_id"
 
     attribute {
-        name = "id"
+        name = "point_id"
         type = "S"
     }
     attribute {
@@ -39,11 +40,7 @@ resource "aws_dynamodb_table" "points_table" {
         type = "S"
     }
 
-    global_secondary_index {
-        name = "user_id-index"
-        hash_key = "user_id"
-        projection_type = "ALL"
-    }
+    
 
     tags = {
         Name = "points"
@@ -82,6 +79,8 @@ resource "aws_iam_policy" "dynamodb_access_policy" {
           "dynamodb:PutItem",
           "dynamodb:UpdateItem",
           "dynamodb:DeleteItem",
+          "dynamodb:Query",
+          "dynamodb:Scan",
         ],
         Effect   = "Allow",
         Resource = aws_dynamodb_table.users_table.arn,

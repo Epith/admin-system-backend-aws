@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"os"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -27,7 +26,7 @@ var (
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	user_id := request.QueryStringParameters["uuid"]
-	region := os.Getenv("AWS_REGION")
+	region := "ap-southeast-1"
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)})
 
@@ -37,7 +36,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, err
 	}
 	dynaClient := dynamodb.New(awsSession)
-	POINTS_TABLE := os.Getenv("POINTS_TABLE")
+	POINTS_TABLE := "points"
 
 	if len(user_id) > 0 {
 		res, err := FetchUserPoint(user_id, POINTS_TABLE, dynaClient)

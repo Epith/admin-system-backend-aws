@@ -59,7 +59,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 func DeleteUser(id string, tableName string, dynaClient dynamodbiface.DynamoDBAPI) error {
 	input := &dynamodb.DeleteItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
-			"uuid": {
+			"user_id": {
 				S: aws.String(id),
 			},
 		},

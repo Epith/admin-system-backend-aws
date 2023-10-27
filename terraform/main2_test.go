@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -14,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
-type User struct {
+type UserPoint struct {
 	User_ID   string `json:"user_id"`
 	Points_ID string `json:"points_id"`
 	Points    int    `json:"points"`
@@ -23,12 +24,12 @@ type User struct {
 var (
 	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
 	ErrorFailedToFetchRecord     = "failed to fetch record"
-	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	id := request.QueryStringParameters["id"]
+	user_id := request.QueryStringParameters["id"]
 	region := os.Getenv("AWS_REGION")
+	fmt.Print(region)
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)})
 
@@ -38,9 +39,11 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, err
 	}
 	dynaClient := dynamodb.New(awsSession)
-	USER_TABLE := os.Getenv("POINTS_TABLE")
-	if len(id) > 0 {
-		res, err := FetchUserByID(id, USER_TABLE, dynaClient)
+	POINTS_TABLE := os.Getenv("POINTS_TABLE")
+	fmt.Print(POINTS_TABLE)
+
+	if len(user_id) > 0 {
+		res, err := FetchUserPoint(user_id, POINTS_TABLE, dynaClient)
 		if err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
@@ -52,7 +55,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			StatusCode: 200,
 		}, nil
 	}
-	res, err := FetchUsers(USER_TABLE, dynaClient)
+	res, err := FetchUsersPoint(POINTS_TABLE, dynaClient)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
@@ -65,65 +68,52 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func FetchUserByID(id, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
-	input := &dynamodb.GetItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
+func FetchUserPoint(user_id string, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]UserPoint, error) {
+	input := &dynamodb.QueryInput{
+		TableName: aws.String(tableName),
+		KeyConditions: map[string]*dynamodb.Condition{
 			"user_id": {
-				S: aws.String(id),
+				ComparisonOperator: aws.String("EQ"),
+				AttributeValueList: []*dynamodb.AttributeValue{
+					{
+						S: aws.String(user_id),
+					},
+				},
 			},
 		},
-		TableName: aws.String(tableName),
 	}
 
-	result, err := dynaClient.GetItem(input)
+	result, err := dynaClient.Query(input)
+	fmt.Print("Query Success")
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecordID)
+		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
-
-	item := new(User)
-	err = dynamodbattribute.UnmarshalMap(result.Item, item)
-	if err != nil {
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
-	}
+	item := new([]UserPoint)
+	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
 	return item, nil
 }
 
-func FetchUsers(tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]User, error) {
-	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
-	user := new(User)
-	item := new([]User)
-
+func FetchUsersPoint(tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]UserPoint, error) {
 	input := &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
-		Limit:     aws.Int64(int64(3000)),
 	}
 
-	for {
-
-		if len(lastEvaluatedKey) != 0 {
-			input.ExclusiveStartKey = lastEvaluatedKey
-		}
-
-		result, err := dynaClient.Scan(input)
-
+	result, err := dynaClient.Scan(input)
+	fmt.Print("Scan Success")
+	if err != nil {
+		return nil, errors.New(ErrorFailedToFetchRecord)
+	}
+	userpoint := new(UserPoint)
+	item := new([]UserPoint)
+	for _, i := range result.Items {
+		err := dynamodbattribute.UnmarshalMap(i, userpoint)
 		if err != nil {
-			return nil, errors.New(ErrorFailedToFetchRecord)
+			return nil, err
 		}
-
-		for _, i := range result.Items {
-			err := dynamodbattribute.UnmarshalMap(i, user)
-			if err != nil {
-				return nil, err
-			}
-			*item = append(*item, *user)
-		}
-
-		if len(result.LastEvaluatedKey) == 0 {
-			return item, nil
-		}
-
-		lastEvaluatedKey = result.LastEvaluatedKey
+		*item = append(*item, *userpoint)
 	}
+	fmt.Print(item)
+	return item, nil
 }
 
 func main() {

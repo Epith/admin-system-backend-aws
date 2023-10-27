@@ -73,12 +73,12 @@ resource "aws_iam_policy" "dynamodb_access_policy" {
     Statement = [
       {
         Action = [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:UpdateItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:Query",
-          "dynamodb:Scan",
+            "dynamodb:GetItem",
+            "dynamodb:PutItem",
+            "dynamodb:UpdateItem",
+            "dynamodb:DeleteItem",
+            "dynamodb:Query",
+            "dynamodb:Scan",
         ],
         Effect   = "Allow",
         Resource = aws_dynamodb_table.users_table.arn,
@@ -89,5 +89,30 @@ resource "aws_iam_policy" "dynamodb_access_policy" {
 
 resource "aws_iam_role_policy_attachment" "attach_dynamodb_access_policy" {
   policy_arn = aws_iam_policy.dynamodb_access_policy.arn
+  role       = aws_iam_role.dynamodb_access_role.name
+}
+
+resource "aws_iam_policy" "cloudwatch_logs_policy" {
+    name        = "CloudWatchLogsPolicy"
+    description = "Policy to allow write access to CloudWatch Logs"
+    
+    policy = jsonencode({
+        Version = "2012-10-17",
+        Statement = [
+        {
+            Action = [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+            ],
+            Effect   = "Allow",
+            Resource = "*",
+        },
+        ],
+    })
+}
+
+resource "aws_iam_role_policy_attachment" "attach_cloudwatch_logs_policy" {
+  policy_arn = aws_iam_policy.cloudwatch_logs_policy.arn
   role       = aws_iam_role.dynamodb_access_role.name
 }

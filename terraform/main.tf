@@ -7,8 +7,12 @@ terraform {
     }
 }
 
+variable "region" {
+  description = "region"
+}
+
 provider "aws" {
-    region = "ap-southeast-1"
+    region = var.region
 }
 
 resource "aws_dynamodb_table" "users_table" {
@@ -32,11 +36,11 @@ resource "aws_dynamodb_table" "points_table" {
     range_key = "points_id"
 
     attribute {
-        name = "points_id"
+        name = "user_id"
         type = "S"
     }
     attribute {
-        name = "user_id"
+        name = "points_id"
         type = "S"
     }
 

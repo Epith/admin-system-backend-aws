@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"regexp"
 
@@ -46,6 +47,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)})
 
+	fmt.Print(region)
+
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
@@ -53,6 +56,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 	dynaClient := dynamodb.New(awsSession)
 	USER_TABLE := os.Getenv("USER_TABLE")
+	fmt.Print(USER_TABLE)
 	res, err := CreateUser(request, USER_TABLE, dynaClient)
 	if err != nil {
 		return events.APIGatewayProxyResponse{

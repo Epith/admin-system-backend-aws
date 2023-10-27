@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -26,8 +27,9 @@ var (
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	user_id := request.QueryStringParameters["uuid"]
+	user_id := request.QueryStringParameters["id"]
 	region := os.Getenv("AWS_REGION")
+	fmt.Print(region)
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)})
 
@@ -38,6 +40,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 	dynaClient := dynamodb.New(awsSession)
 	POINTS_TABLE := os.Getenv("POINTS_TABLE")
+	fmt.Print(POINTS_TABLE)
 
 	if len(user_id) > 0 {
 		res, err := FetchUserPoint(user_id, POINTS_TABLE, dynaClient)
@@ -81,6 +84,7 @@ func FetchUserPoint(user_id string, tableName string, dynaClient dynamodbiface.D
 	}
 
 	result, err := dynaClient.Query(input)
+	fmt.Print("Query Success")
 	if err != nil {
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
@@ -95,6 +99,7 @@ func FetchUsersPoint(tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[
 	}
 
 	result, err := dynaClient.Scan(input)
+	fmt.Print("Scan Success")
 	if err != nil {
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}

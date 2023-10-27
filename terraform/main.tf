@@ -86,7 +86,10 @@ resource "aws_iam_policy" "dynamodb_access_policy" {
             "dynamodb:Scan",
         ],
         Effect   = "Allow",
-        Resource = aws_dynamodb_table.users_table.arn,
+        Resource = [
+            aws_dynamodb_table.users_table.arn,
+            aws_dynamodb_table.points_table.arn,
+        ],
       },
     ],
   })

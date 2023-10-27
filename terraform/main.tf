@@ -32,11 +32,12 @@ resource "aws_dynamodb_table" "points_table" {
     range_key = "points_id"
 
     attribute {
-        name = "points_id"
+        name = "user_id"
         type = "S"
     }
+
     attribute {
-        name = "user_id"
+        name = "points_id"
         type = "S"
     }
 

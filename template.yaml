@@ -5,7 +5,7 @@ Description: >
 
 Globals:
   Function:
-    MemorySize: 128
+    MemorySize: 256
     Architectures: ["arm64"]
     Handler: bootstrap
     Runtime: provided.al2
@@ -16,12 +16,50 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/get-points/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
       Events:
         Api:
           Type: HttpApi
           Properties:
             Path: /points
             Method: GET
+      Environment: 
+        Variables:
+          POINTS_TABLE: points
+    Metadata:
+      BuildMethod: makefile
+
+  UpdatePointsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/update-points/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /points
+            Method: PUT
+      Environment: 
+        Variables:
+          POINTS_TABLE: points
+    Metadata:
+      BuildMethod: makefile
+  
+  CreatePointsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/create-points/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /points
+            Method: POST
+      Environment: 
+        Variables:
+          POINTS_TABLE: points
     Metadata:
       BuildMethod: makefile
 
@@ -29,12 +67,63 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/get-users/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
       Events:
         Api:
           Type: HttpApi
           Properties:
             Path: /users
             Method: GET
+      Environment: 
+        Variables:
+            USER_TABLE: users
+    Metadata:
+      BuildMethod: makefile
+
+  CreateUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/create-users/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /users
+            Method: POST
+      Environment: 
+        Variables:
+            USER_TABLE: users
+    Metadata:
+      BuildMethod: makefile
+
+  # UpdateUsersFunction:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     CodeUri: functions/update-users/
+  #     Events:
+  #       Api:
+  #         Type: HttpApi
+  #         Properties:
+  #           Path: /users
+  #           Method: PUT
+  #   Metadata:
+  #     BuildMethod: makefile
+
+  DeleteUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/delete-users/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /users
+            Method: DELETE
+      Environment: 
+        Variables:
+          USER_TABLE: users
     Metadata:
       BuildMethod: makefile
 
@@ -43,8 +132,5 @@ Outputs:
   # Find out more about other implicit resources you can reference within SAM
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   AscendaAPI:
-    Description: "API Gateway endpoint URL for Prod environment for First Function"
-    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/points"
-  GetPointsFunctionARN:
-    Description: "First Lambda Function ARN"
-    Value: !GetAtt GetPointsFunction.Arn
+    Description: "API Gateway endpoint URL for Prod environment"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"

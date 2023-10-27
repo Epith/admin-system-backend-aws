@@ -14,9 +14,9 @@ provider "aws" {
 resource "aws_dynamodb_table" "users_table" {
     name = "users"
     billing_mode = "PAY_PER_REQUEST"
-    hash_key = "id"
+    hash_key = "user_id"
     attribute {
-        name = "id"
+        name = "user_id"
         type = "S"
     }
 
@@ -28,33 +28,29 @@ resource "aws_dynamodb_table" "users_table" {
 resource "aws_dynamodb_table" "points_table" {
     name = "points"
     billing_mode = "PAY_PER_REQUEST"
-    hash_key = "id"
+    hash_key = "user_id"
+    range_key = "points_id"
 
-    attribute {
-        name = "id"
-        type = "S"
-    }
     attribute {
         name = "user_id"
         type = "S"
     }
 
-    global_secondary_index {
-        name = "user_id-index"
-        hash_key = "user_id"
-        projection_type = "ALL"
+    attribute {
+        name = "points_id"
+        type = "S"
     }
 
     tags = {
-        Name = "points"
+        Name = "dynamodb-points"
     }
 }
 
 resource "aws_iam_role" "dynamodb_access_role" {
-  name = "DynamoDBAccessRole"
+    name = "DynamoDBAccessRole"
 
-  assume_role_policy = <<EOF
-    {
+    assume_role_policy = <<EOF
+{
     "Version": "2012-10-17",
     "Statement": [
         {
@@ -65,8 +61,8 @@ resource "aws_iam_role" "dynamodb_access_role" {
         "Action": "sts:AssumeRole"
         }
     ]
-    }
-    EOF
+}
+EOF
 }
 
 resource "aws_iam_policy" "dynamodb_access_policy" {
@@ -78,10 +74,12 @@ resource "aws_iam_policy" "dynamodb_access_policy" {
     Statement = [
       {
         Action = [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:UpdateItem",
-          "dynamodb:DeleteItem",
+            "dynamodb:GetItem",
+            "dynamodb:PutItem",
+            "dynamodb:UpdateItem",
+            "dynamodb:DeleteItem",
+            "dynamodb:Query",
+            "dynamodb:Scan",
         ],
         Effect   = "Allow",
         Resource = aws_dynamodb_table.users_table.arn,
@@ -92,5 +90,30 @@ resource "aws_iam_policy" "dynamodb_access_policy" {
 
 resource "aws_iam_role_policy_attachment" "attach_dynamodb_access_policy" {
   policy_arn = aws_iam_policy.dynamodb_access_policy.arn
+  role       = aws_iam_role.dynamodb_access_role.name
+}
+
+resource "aws_iam_policy" "cloudwatch_logs_policy" {
+    name        = "CloudWatchLogsPolicy"
+    description = "Policy to allow write access to CloudWatch Logs"
+    
+    policy = jsonencode({
+        Version = "2012-10-17",
+        Statement = [
+        {
+            Action = [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+            ],
+            Effect   = "Allow",
+            Resource = "*",
+        },
+        ],
+    })
+}
+
+resource "aws_iam_role_policy_attachment" "attach_cloudwatch_logs_policy" {
+  policy_arn = aws_iam_policy.cloudwatch_logs_policy.arn
   role       = aws_iam_role.dynamodb_access_role.name
 }

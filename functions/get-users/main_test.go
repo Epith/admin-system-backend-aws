@@ -23,20 +23,7 @@ func TestHandler(t *testing.T) {
 					},
 				},
 			},
-			expectedBody:  "Hello, world!\n",
-			expectedError: nil,
-		},
-		{
-			// mock a request with a localhost SourceIP
-			name: "localhost IP",
-			request: events.APIGatewayProxyRequest{
-				RequestContext: events.APIGatewayProxyRequestContext{
-					Identity: events.APIGatewayRequestIdentity{
-						SourceIP: "127.0.0.1",
-					},
-				},
-			},
-			expectedBody:  "Hello, 127.0.0.1!\n",
+			expectedBody:  "{}",
 			expectedError: nil,
 		},
 	}

@@ -80,18 +80,21 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
-  # CreateUsersFunction:
-  #   Type: AWS::Serverless::Function
-  #   Properties:
-  #     CodeUri: functions/create-users/
-  #     Events:
-  #       Api:
-  #         Type: HttpApi
-  #         Properties:
-  #           Path: /users
-  #           Method: POST
-  #   Metadata:
-  #     BuildMethod: makefile
+  CreateUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/create-users/
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /users
+            Method: POST
+      Environment: 
+        Variables:
+            USER_TABLE: users
+    Metadata:
+      BuildMethod: makefile
 
   # UpdateUsersFunction:
   #   Type: AWS::Serverless::Function

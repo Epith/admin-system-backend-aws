@@ -84,6 +84,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/create-users/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
       Events:
         Api:
           Type: HttpApi
@@ -131,8 +132,5 @@ Outputs:
   # Find out more about other implicit resources you can reference within SAM
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   AscendaAPI:
-    Description: "API Gateway endpoint URL for Prod environment for First Function"
-    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/points"
-  GetPointsFunctionARN:
-    Description: "First Lambda Function ARN"
-    Value: !GetAtt GetPointsFunction.Arn
+    Description: "API Gateway endpoint URL for Prod environment"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"

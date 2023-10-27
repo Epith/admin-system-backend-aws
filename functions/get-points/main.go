@@ -29,7 +29,6 @@ var (
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	user_id := request.QueryStringParameters["id"]
 	region := os.Getenv("AWS_REGION")
-	fmt.Print(region)
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)})
 
@@ -40,7 +39,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 	dynaClient := dynamodb.New(awsSession)
 	POINTS_TABLE := os.Getenv("POINTS_TABLE")
-	fmt.Print(POINTS_TABLE)
 
 	if len(user_id) > 0 {
 		res, err := FetchUserPoint(user_id, POINTS_TABLE, dynaClient)

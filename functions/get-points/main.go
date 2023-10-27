@@ -103,8 +103,15 @@ func FetchUsersPoint(tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[
 	if err != nil {
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
+	userpoint := new(UserPoint)
 	item := new([]UserPoint)
-	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
+	for _, i := range result.Items {
+		err := dynamodbattribute.UnmarshalMap(i, userpoint)
+		if err != nil {
+			return nil, err
+		}
+		*item = append(*item, *userpoint)
+	}
 	return item, nil
 }
 

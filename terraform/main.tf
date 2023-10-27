@@ -39,6 +39,7 @@ resource "aws_dynamodb_table" "points_table" {
         name = "user_id"
         type = "S"
     }
+
     attribute {
         name = "points_id"
         type = "S"

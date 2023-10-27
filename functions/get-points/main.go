@@ -16,9 +16,9 @@ import (
 )
 
 type UserPoint struct {
-	UserUUID   string `json:"user_id"`
-	PointsUUID string `json:"points_id"`
-	Points     int    `json:"points"`
+	User_ID   string `json:"user_id"`
+	Points_ID string `json:"points_id"`
+	Points    int    `json:"points"`
 }
 
 var (

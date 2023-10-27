@@ -15,9 +15,9 @@ import (
 )
 
 type UserPoint struct {
-	UserUUID   string `json:"user_id"`
-	PointsUUID string `json:"points_id"`
-	Points     int    `json:"points"`
+	User_ID   string `json:"user_id"`
+	Points_ID string `json:"points_id"`
+	Points    int    `json:"points"`
 }
 
 var (
@@ -70,9 +70,9 @@ func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableNam
 	if err := json.Unmarshal([]byte(req.Body), &userpoint); err != nil {
 		return nil, errors.New(ErrorInvalidUserData)
 	}
-	userpoint.UserUUID = user_id
+	userpoint.User_ID = user_id
 
-	if userpoint.PointsUUID == "" {
+	if userpoint.Points_ID == "" {
 		return nil, errors.New(ErrorInvalidPointsID)
 	}
 
@@ -82,12 +82,12 @@ func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableNam
 	}
 	var result = new(UserPoint)
 	for _, v := range *results {
-		if v.PointsUUID == userpoint.PointsUUID {
+		if v.Points_ID == userpoint.Points_ID {
 			result = &userpoint
 		}
 	}
 
-	if result.PointsUUID != userpoint.PointsUUID {
+	if result.Points_ID != userpoint.Points_ID {
 		return nil, errors.New(ErrorCouldNotMarshalItem)
 	}
 

@@ -19,7 +19,7 @@ import (
 
 type User struct {
 	Email     string `json:"email"`
-	UUID      string `json:"uuid"`
+	User_ID   string `json:"user_id"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Role      string `json:"role"`
@@ -88,7 +88,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	if len(user.LastName) == 0 {
 		return nil, errors.New(ErrorInvalidLastName)
 	}
-	user.UUID = uuid.NewString()
+	user.User_ID = uuid.NewString()
 
 	// currentUser, _ := FetchUserByEmail(user.Email, tableName, dynaClient)
 	// if currentUser != nil && len(currentUser.Email) != 0 {

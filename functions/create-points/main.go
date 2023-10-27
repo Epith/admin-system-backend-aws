@@ -16,9 +16,9 @@ import (
 )
 
 type UserPoint struct {
-	UserUUID   string `json:"user_id"`
-	PointsUUID string `json:"points_id"`
-	Points     int    `json:"points"`
+	User_ID   string `json:"user_id"`
+	Points_ID string `json:"points_id"`
+	Points    int    `json:"points"`
 }
 
 var (
@@ -60,11 +60,11 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 		return nil, errors.New(ErrorInvalidUserData)
 	}
 
-	if userpoint.UserUUID == "" {
+	if userpoint.User_ID == "" {
 		return nil, errors.New(ErrorInvalidUserData)
 	}
 
-	userpoint.PointsUUID = uuid.NewString()
+	userpoint.Points_ID = uuid.NewString()
 	userpoint.Points = 0
 
 	av, err := dynamodbattribute.MarshalMap(userpoint)

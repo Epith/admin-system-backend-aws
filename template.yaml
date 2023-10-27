@@ -5,7 +5,7 @@ Description: >
 
 Globals:
   Function:
-    MemorySize: 128
+    MemorySize: 256
     Architectures: ["arm64"]
     Handler: bootstrap
     Runtime: provided.al2

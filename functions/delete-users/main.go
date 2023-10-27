@@ -14,7 +14,7 @@ import (
 
 type User struct {
 	Email     string `json:"email"`
-	UUID      string `json:"uuid"`
+	User_ID   string `json:"user_id"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Role      string `json:"role"`

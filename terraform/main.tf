@@ -7,8 +7,12 @@ terraform {
     }
 }
 
+variable "region" {
+  description = "region"
+}
+
 provider "aws" {
-    region = "ap-southeast-1"
+    region = var.region
 }
 
 resource "aws_dynamodb_table" "users_table" {

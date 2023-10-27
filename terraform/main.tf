@@ -41,7 +41,7 @@ resource "aws_dynamodb_table" "points_table" {
     }
 
     tags = {
-        Name = "points"
+        Name = "dynamodb-points"
     }
 }
 

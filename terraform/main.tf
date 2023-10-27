@@ -14,9 +14,9 @@ provider "aws" {
 resource "aws_dynamodb_table" "users_table" {
     name = "users"
     billing_mode = "PAY_PER_REQUEST"
-    hash_key = "id"
+    hash_key = "user_id"
     attribute {
-        name = "id"
+        name = "user_id"
         type = "S"
     }
 
@@ -29,18 +29,16 @@ resource "aws_dynamodb_table" "points_table" {
     name = "points"
     billing_mode = "PAY_PER_REQUEST"
     hash_key = "user_id"
-    range_key = "point_id"
+    range_key = "points_id"
 
     attribute {
-        name = "point_id"
+        name = "points_id"
         type = "S"
     }
     attribute {
         name = "user_id"
         type = "S"
     }
-
-    
 
     tags = {
         Name = "points"

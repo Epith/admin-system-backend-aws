@@ -70,7 +70,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 func FetchUserByID(id, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
 	input := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
-			"uuid": {
+			"user_id": {
 				S: aws.String(id),
 			},
 		},

@@ -16,6 +16,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/get-points/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
       Events:
         Api:
           Type: HttpApi
@@ -29,6 +30,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/update-points/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
       Events:
         Api:
           Type: HttpApi
@@ -42,6 +44,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/create-points/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
       Events:
         Api:
           Type: HttpApi
@@ -55,6 +58,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/get-users/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
       Events:
         Api:
           Type: HttpApi
@@ -94,6 +98,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/delete-users/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
       Events:
         Api:
           Type: HttpApi

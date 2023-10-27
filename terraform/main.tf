@@ -46,10 +46,10 @@ resource "aws_dynamodb_table" "points_table" {
 }
 
 resource "aws_iam_role" "dynamodb_access_role" {
-  name = "DynamoDBAccessRole"
+    name = "DynamoDBAccessRole"
 
-  assume_role_policy = <<EOF
-    {
+    assume_role_policy = <<EOF
+{
     "Version": "2012-10-17",
     "Statement": [
         {
@@ -60,8 +60,8 @@ resource "aws_iam_role" "dynamodb_access_role" {
         "Action": "sts:AssumeRole"
         }
     ]
-    }
-    EOF
+}
+EOF
 }
 
 resource "aws_iam_policy" "dynamodb_access_policy" {

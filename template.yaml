@@ -25,6 +25,32 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
+  UpdatePointsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/update-points/
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /points
+            Method: PUT
+    Metadata:
+      BuildMethod: makefile
+  
+  CreatePointsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/create-points/
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /points
+            Method: POST
+    Metadata:
+      BuildMethod: makefile
+
   GetUsersFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -35,6 +61,45 @@ Resources:
           Properties:
             Path: /users
             Method: GET
+    Metadata:
+      BuildMethod: makefile
+
+  # CreateUsersFunction:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     CodeUri: functions/create-users/
+  #     Events:
+  #       Api:
+  #         Type: HttpApi
+  #         Properties:
+  #           Path: /users
+  #           Method: POST
+  #   Metadata:
+  #     BuildMethod: makefile
+
+  # UpdateUsersFunction:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     CodeUri: functions/update-users/
+  #     Events:
+  #       Api:
+  #         Type: HttpApi
+  #         Properties:
+  #           Path: /users
+  #           Method: PUT
+  #   Metadata:
+  #     BuildMethod: makefile
+
+  DeleteUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/delete-users/
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /users
+            Method: DELETE
     Metadata:
       BuildMethod: makefile
 

@@ -17,6 +17,7 @@ func TestHandler(t *testing.T) {
 			// mock a request with an empty SourceIP
 			name: "empty IP",
 			request: events.APIGatewayProxyRequest{
+				Body: "a9c042b0-5d36-44a1-9200-e1d068c3befa",
 				RequestContext: events.APIGatewayProxyRequestContext{
 					Identity: events.APIGatewayRequestIdentity{
 						SourceIP: "",

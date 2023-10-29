@@ -27,6 +27,7 @@ var (
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	id := request.QueryStringParameters["id"]
+	role := request.QueryStringParameters["role"]
 	region := os.Getenv("AWS_REGION")
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)})
@@ -37,9 +38,10 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, err
 	}
 	dynaClient := dynamodb.New(awsSession)
+	cognitoClient := cognitoidentityprovider.New(awsSession)
 	USER_TABLE := os.Getenv("USER_TABLE")
 	if len(id) > 0 {
-		res := DeleteUser(id, USER_TABLE, dynaClient)
+		res := DeleteUser(id, role, USER_TABLE, dynaClient)
 		if res != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
@@ -56,7 +58,15 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, errors.New(ErrorInvalidUUID)
 }
 
-func DeleteUser(id string, tableName string, dynaClient dynamodbiface.DynamoDBAPI) error {
+func DeleteUser(id string, role string, tableName string, dynaClient dynamodbiface.DynamoDBAPI) error {
+	
+	input := &cognitoidentityprovider.AdminDeleteUserInput{
+		"Username": aws.String(id),
+		"UserPoolId": aws.String(role)
+	}if err != nil {
+		return errors.New(InternalErrorException)
+	}
+	
 	input := &dynamodb.DeleteItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
 			"user_id": {

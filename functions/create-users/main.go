@@ -55,9 +55,11 @@ var (
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	//get variables
 	region := os.Getenv("AWS_REGION")
 	USER_TABLE := os.Getenv("USER_TABLE")
 
+	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)})
 
@@ -68,6 +70,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 	dynaClient := dynamodb.New(awsSession)
 
+	//calling create user in dynamo func
 	res, err := CreateUser(request, USER_TABLE, dynaClient)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
@@ -75,6 +78,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, err
 	}
 	stringBody, _ := json.Marshal(res)
+
 	return events.APIGatewayProxyResponse{
 		Body:       string(stringBody),
 		StatusCode: 200,
@@ -87,6 +91,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 ) {
 	var user User
 
+	//marshal body into user
 	if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
 		err = errors.New(ErrorInvalidUserData)
 		if logErr := sendLogs(req, 2, 2, "user", dynaClient, err); logErr != nil {
@@ -94,6 +99,8 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		}
 		return nil, err
 	}
+
+	//error checks
 	if !IsEmailValid(user.Email) {
 		err := errors.New(ErrorInvalidEmail)
 		if logErr := sendLogs(req, 2, 2, "user", dynaClient, err); logErr != nil {
@@ -117,6 +124,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	}
 	user.User_ID = uuid.NewString()
 
+	//putting user into dynamo
 	av, err := dynamodbattribute.MarshalMap(user)
 
 	if err != nil {
@@ -130,6 +138,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		Item:      av,
 		TableName: aws.String(tableName),
 	}
+
 	_, err = dynaClient.PutItem(input)
 	if err != nil {
 		if logErr := sendLogs(req, 3, 2, "user", dynaClient, err); logErr != nil {
@@ -137,9 +146,11 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		}
 		return nil, errors.New(ErrorCouldNotDynamoPutItem)
 	}
+
 	if logErr := sendLogs(req, 1, 2, "user", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
+
 	return &user, nil
 }
 

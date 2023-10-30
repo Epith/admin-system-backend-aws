@@ -42,7 +42,11 @@ var (
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	//getting variables
 	region := os.Getenv("AWS_REGION")
+	POINTS_TABLE := os.Getenv("POINTS_TABLE")
+
+	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)})
 
@@ -52,8 +56,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, err
 	}
 	dynaClient := dynamodb.New(awsSession)
-	POINTS_TABLE := os.Getenv("POINTS_TABLE")
 
+	//calling create point to dynamo func
 	res, err := CreateUserPoint(request, POINTS_TABLE, dynaClient)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
@@ -61,6 +65,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, err
 	}
 	stringBody, _ := json.Marshal(res)
+
 	return events.APIGatewayProxyResponse{
 		Body:       string(stringBody),
 		StatusCode: 200,
@@ -70,6 +75,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
 	var userpoint UserPoint
 
+	//marshall body to point struct
 	if err := json.Unmarshal([]byte(req.Body), &userpoint); err != nil {
 		err = errors.New(ErrorInvalidUserData)
 		if logErr := sendLogs(req, 2, 2, "point", dynaClient, err); logErr != nil {
@@ -78,6 +84,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 		return nil, err
 	}
 
+	//check if user_id is supplied
 	if userpoint.User_ID == "" {
 		err := errors.New(ErrorInvalidUserData)
 		if logErr := sendLogs(req, 2, 2, "point", dynaClient, err); logErr != nil {
@@ -89,6 +96,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 	userpoint.Points_ID = uuid.NewString()
 	userpoint.Points = 0
 
+	//putting into dynamo db
 	av, err := dynamodbattribute.MarshalMap(userpoint)
 
 	if err != nil {
@@ -104,6 +112,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 	}
 
 	_, err = dynaClient.PutItem(data)
+
 	if err != nil {
 		if logErr := sendLogs(req, 3, 2, "point", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
@@ -114,6 +123,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 	if logErr := sendLogs(req, 1, 2, "point", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
+
 	return &userpoint, nil
 }
 

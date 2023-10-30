@@ -26,6 +26,7 @@ Resources:
       Environment: 
         Variables:
           POINTS_TABLE: points
+          LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -43,6 +44,7 @@ Resources:
       Environment: 
         Variables:
           POINTS_TABLE: points
+          LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
   
@@ -60,6 +62,7 @@ Resources:
       Environment: 
         Variables:
           POINTS_TABLE: points
+          LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -77,6 +80,7 @@ Resources:
       Environment: 
         Variables:
             USER_TABLE: users
+            LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -94,21 +98,27 @@ Resources:
       Environment: 
         Variables:
             USER_TABLE: users
+            LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
-  # UpdateUsersFunction:
-  #   Type: AWS::Serverless::Function
-  #   Properties:
-  #     CodeUri: functions/update-users/
-  #     Events:
-  #       Api:
-  #         Type: HttpApi
-  #         Properties:
-  #           Path: /users
-  #           Method: PUT
-  #   Metadata:
-  #     BuildMethod: makefile
+  UpdateUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/update-users/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /users
+            Method: PUT
+      Environment: 
+        Variables:
+          USER_TABLE: users
+          LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
 
   DeleteUsersFunction:
     Type: AWS::Serverless::Function
@@ -124,6 +134,24 @@ Resources:
       Environment: 
         Variables:
           USER_TABLE: users
+          LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  GetLogsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get-logs/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /logs
+            Method: GET
+      Environment: 
+        Variables:
+            LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 

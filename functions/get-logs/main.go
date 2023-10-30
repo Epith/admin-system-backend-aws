@@ -82,7 +82,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func FetchLogByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
+func FetchLogByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*Log, error) {
 	//get single log from dynamo
 	input := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
@@ -116,7 +116,7 @@ func FetchLogByID(id string, req events.APIGatewayProxyRequest, tableName string
 	return item, nil
 }
 
-func FetchLogs(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]User, error) {
+func FetchLogs(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]Log, error) {
 	//get all logs
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
 	logItem := new(Log)

@@ -77,11 +77,10 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 
 	//marshall body to point struct
 	if err := json.Unmarshal([]byte(req.Body), &userpoint); err != nil {
-		err = errors.New(ErrorInvalidUserData)
 		if logErr := sendLogs(req, 2, 2, "point", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
-		return nil, err
+		return nil, errors.New(ErrorInvalidUserData)
 	}
 
 	//check if user_id is supplied

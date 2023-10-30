@@ -72,6 +72,10 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, nil
 	}
 
+	if logErr := sendLogs(request, 2, 4, "user", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
+	}
+
 	return events.APIGatewayProxyResponse{
 		Body:       "User ID missing",
 		StatusCode: 404,

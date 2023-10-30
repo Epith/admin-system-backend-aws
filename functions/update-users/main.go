@@ -79,6 +79,11 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			StatusCode: 200,
 		}, nil
 	}
+
+	if logErr := sendLogs(request, 2, 3, "user", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
+	}
+
 	return events.APIGatewayProxyResponse{
 		StatusCode: 404,
 	}, errors.New(ErrorInvalidUserData)
@@ -130,10 +135,14 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 	_, err = dynaClient.PutItem(input)
 	if err != nil {
-		if logErr := sendLogs(req, 2, 3, "user", dynaClient, err); logErr != nil {
+		if logErr := sendLogs(req, 3, 3, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorCouldNotDynamoPutItem)
+	}
+
+	if logErr := sendLogs(req, 1, 3, "user", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
 	}
 
 	return &user, nil

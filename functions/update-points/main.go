@@ -78,6 +78,11 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			StatusCode: 200,
 		}, nil
 	}
+
+	if logErr := sendLogs(request, 2, 3, "point", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
+	}
+
 	return events.APIGatewayProxyResponse{
 		StatusCode: 404,
 	}, errors.New(ErrorInvalidUserData)

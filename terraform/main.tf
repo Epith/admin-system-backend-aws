@@ -65,6 +65,19 @@ resource "aws_dynamodb_table" "roles_table" {
     }
 }
 
+resource "aws_dynamodb_table" "logs_table" {
+    name = "logs"
+    billing_mode = "PAY_PER_REQUEST"
+    hash_key = "log_id"
+    attribute {
+        name = "log_id"
+        type = "S"
+    }
+
+    tags = {
+        Name = "dynamodb-logs"
+    }
+}
 # Lambda DynamoDB Access Role and Policy
 resource "aws_iam_role" "dynamodb_access_role" {
     name = "DynamoDBAccessRole"
@@ -106,6 +119,7 @@ resource "aws_iam_policy" "dynamodb_access_policy" {
             aws_dynamodb_table.users_table.arn,
             aws_dynamodb_table.points_table.arn,
             aws_dynamodb_table.roles_table.arn,
+            aws_dynamodb_table.logs_table.arn,
         ],
       },
     ],

@@ -28,13 +28,15 @@ type User struct {
 }
 
 type Log struct {
-	Log_ID        string                 `json:"log_id"`
-	Severity      int                    `json:"severity"`
-	User_ID       string                 `json:"user_id"`
-	Action_Type   int                    `json:"action_type"`
-	Resource_Type string                 `json:"resource_type"`
-	Data          map[string]interface{} `json:"data"`
-	Timestamp     time.Time              `json:"timestamp"`
+	Log_ID          string      `json:"log_id"`
+	Severity        int         `json:"severity"`
+	User_ID         string      `json:"user_id"`
+	Action_Type     int         `json:"action_type"`
+	Resource_Type   string      `json:"resource_type"`
+	Body            interface{} `json:"body"`
+	QueryParameters interface{} `json:"query_parameters"`
+	Error           interface{} `json:"error"`
+	Timestamp       time.Time   `json:"timestamp"`
 }
 
 var (
@@ -196,16 +198,14 @@ func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resou
 	LOGS_TABLE := os.Getenv("LOGS_TABLE")
 	//create log struct
 	log := Log{}
-	data := make(map[string]interface{})
-	data["Body"] = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
-	data["Query Parameters"] = req.QueryStringParameters
-	data["Error"] = err
+	log.Body = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
+	log.QueryParameters = req.QueryStringParameters
+	log.Error = err
 	log.Log_ID = uuid.NewString()
 	log.Severity = severity
 	log.User_ID = req.RequestContext.Identity.User
 	log.Action_Type = action
 	log.Resource_Type = resource
-	log.Data = data
 	log.Timestamp = time.Now().UTC()
 
 	av, err := dynamodbattribute.MarshalMap(log)

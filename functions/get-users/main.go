@@ -68,10 +68,12 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 				StatusCode: 404,
 			}, err
 		}
-		stringBody, _ := json.Marshal(res)
+		body, _ := json.Marshal(res)
+		stringBody := string(body)
 		return events.APIGatewayProxyResponse{
-			Body:       string(stringBody),
+			Body:       string(body),
 			StatusCode: 200,
+			Headers: map[string]string{"content-Type": "application/json"},
 		}, nil
 	}
 
@@ -183,7 +185,7 @@ func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resou
 	data := make(map[string]interface{})
 	data["Body"] = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
 	data["Query Parameters"] = req.QueryStringParameters
-	//data["Error"] = err.Error()
+	data["Error"] = err
 	log.Log_ID = uuid.NewString()
 	log.Severity = severity
 	log.User_ID = req.RequestContext.Identity.User

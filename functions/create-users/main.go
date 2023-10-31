@@ -20,10 +20,10 @@ import (
 )
 
 type User struct {
-	Email     string   `json:"email"`
-	User_ID   string   `json:"user_id"`
-	FirstName string   `json:"first_name"`
-	LastName  string   `json:"last_name"`
+	Email     string `json:"email"`
+	User_ID   string `json:"user_id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
 	Role      string `json:"role"`
 }
 
@@ -66,6 +66,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
+			Body:       string("Error setting up aws session"),
+			Headers:    map[string]string{"content-Type": "application/json"},
 		}, err
 	}
 	dynaClient := dynamodb.New(awsSession)
@@ -75,13 +77,16 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
+			Body:       string("Error creating user account"),
+			Headers:    map[string]string{"content-Type": "application/json"},
 		}, err
 	}
-	stringBody, _ := json.Marshal(res)
-
+	body, _ := json.Marshal(res)
+	stringBody := string(body)
 	return events.APIGatewayProxyResponse{
-		Body:       string(stringBody),
+		Body:       stringBody,
 		StatusCode: 200,
+		Headers:    map[string]string{"content-Type": "application/json"},
 	}, nil
 }
 
@@ -175,7 +180,7 @@ func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resou
 	data := make(map[string]interface{})
 	data["Body"] = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
 	data["Query Parameters"] = req.QueryStringParameters
-	data["Error"] = err.Error()
+	data["Error"] = err
 	log.Log_ID = uuid.NewString()
 	log.Severity = severity
 	log.User_ID = req.RequestContext.Identity.User

@@ -25,11 +25,10 @@ type Log struct {
 	User_ID         string      `json:"user_id"`
 	Action_Type     int         `json:"action_type"`
 	Resource_Type   string      `json:"resource_type"`
-	Body            interface{} `json:"data"`
+	Body            interface{} `json:"body"`
 	QueryParameters interface{} `json:"query_parameters"`
 	Error           interface{} `json:"error"`
-	//Data          map[string]interface{} `json:"data"`
-	Timestamp time.Time `json:"timestamp"`
+	Timestamp       time.Time   `json:"timestamp"`
 }
 
 var (

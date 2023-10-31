@@ -183,7 +183,7 @@ func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resou
 	data := make(map[string]interface{})
 	data["Body"] = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
 	data["Query Parameters"] = req.QueryStringParameters
-	data["Error"] = err.Error()
+	//data["Error"] = err.Error()
 	log.Log_ID = uuid.NewString()
 	log.Severity = severity
 	log.User_ID = req.RequestContext.Identity.User

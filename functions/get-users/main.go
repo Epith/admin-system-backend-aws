@@ -28,13 +28,13 @@ type User struct {
 }
 
 type Log struct {
-	Log_ID        string                 `json:"log_id"`
-	Severity      int                    `json:"severity"`
-	User_ID       string                 `json:"user_id"`
-	Action_Type   int                    `json:"action_type"`
-	Resource_Type string                 `json:"resource_type"`
-	Data          map[string]interface{} `json:"data"`
-	Timestamp     time.Time              `json:"timestamp"`
+	Log_ID        string            `json:"log_id"`
+	Severity      int               `json:"severity"`
+	User_ID       string            `json:"user_id"`
+	Action_Type   int               `json:"action_type"`
+	Resource_Type string            `json:"resource_type"`
+	Data          map[string]string `json:"data"`
+	Timestamp     time.Time         `json:"timestamp"`
 }
 
 var (
@@ -190,7 +190,7 @@ func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resou
 	LOGS_TABLE := os.Getenv("LOGS_TABLE")
 	//create log struct
 	log := Log{}
-	data := make(map[string]interface{})
+	data := make(map[string]string)
 
 	if req.Body != "" {
 		data["Body"] = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
@@ -199,12 +199,14 @@ func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resou
 	}
 
 	if len(req.QueryStringParameters) != 0 {
-		data["Query Parameters"] = req.QueryStringParameters
+		for k, v := range req.QueryStringParameters {
+			data["Query Parameters: "+k] = v
+		}
 	} else {
 		data["Query Parameters"] = ""
 	}
 	if err != nil {
-		data["Error"] = err
+		data["Error"] = err.Error()
 	} else {
 		data["Error"] = ""
 	}

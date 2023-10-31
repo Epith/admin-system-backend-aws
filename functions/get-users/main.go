@@ -24,7 +24,7 @@ type User struct {
 	User_ID   string   `json:"user_id"`
 	FirstName string   `json:"first_name"`
 	LastName  string   `json:"last_name"`
-	Role      []string `json:"role"`
+	Role      string `json:"role"`
 }
 
 type Log struct {

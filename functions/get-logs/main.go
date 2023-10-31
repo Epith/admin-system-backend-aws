@@ -48,6 +48,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
+			Body:       string("Error setting up aws session"),
+			Headers:    map[string]string{"content-Type": "application/json"},
 		}, err
 	}
 	dynaClient := dynamodb.New(awsSession)
@@ -58,12 +60,16 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		if err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
+				Body:       string("Error getting log by ID"),
+				Headers:    map[string]string{"content-Type": "application/json"},
 			}, err
 		}
-		stringBody, _ := json.Marshal(res)
+		body, _ := json.Marshal(res)
+		stringBody := string(body)
 		return events.APIGatewayProxyResponse{
-			Body:       string(stringBody),
+			Body:       stringBody,
 			StatusCode: 200,
+			Headers:    map[string]string{"content-Type": "application/json"},
 		}, nil
 	}
 
@@ -72,13 +78,17 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
+			Body:       string("Error getting logs"),
+			Headers:    map[string]string{"content-Type": "application/json"},
 		}, err
 	}
 
-	stringBody, _ := json.Marshal(res)
+	body, _ := json.Marshal(res)
+	stringBody := string(body)
 	return events.APIGatewayProxyResponse{
 		Body:       string(stringBody),
 		StatusCode: 200,
+		Headers:    map[string]string{"content-Type": "application/json"},
 	}, nil
 }
 

@@ -54,6 +54,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
+			Body:       string("Error setting up aws session"),
+			Headers:    map[string]string{"content-Type": "application/json"},
 		}, err
 	}
 	dynaClient := dynamodb.New(awsSession)
@@ -64,11 +66,14 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		if res != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
+				Body:       string("Error deleting User"),
+				Headers:    map[string]string{"content-Type": "application/json"},
 			}, res
 		}
 		return events.APIGatewayProxyResponse{
 			Body:       "Record successfully deleted",
 			StatusCode: 200,
+			Headers:    map[string]string{"content-Type": "application/json"},
 		}, nil
 	}
 
@@ -118,7 +123,7 @@ func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resou
 	data := make(map[string]interface{})
 	data["Body"] = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
 	data["Query Parameters"] = req.QueryStringParameters
-	data["Error"] = err.Error()
+	data["Error"] = err
 	log.Log_ID = uuid.NewString()
 	log.Severity = severity
 	log.User_ID = req.RequestContext.Identity.User

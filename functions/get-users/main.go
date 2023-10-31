@@ -43,7 +43,7 @@ var (
 	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
 )
 
-func handler(request *events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//get variables
 	id := request.QueryStringParameters["id"]
 	region := os.Getenv("AWS_REGION")
@@ -100,7 +100,7 @@ func handler(request *events.APIGatewayProxyRequest) (events.APIGatewayProxyResp
 	}, nil
 }
 
-func FetchUserByID(id string, req *events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
+func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
 	//get single user from dynamo
 	input := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
@@ -134,7 +134,7 @@ func FetchUserByID(id string, req *events.APIGatewayProxyRequest, tableName stri
 	return item, nil
 }
 
-func FetchUsers(req *events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]User, error) {
+func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]User, error) {
 	//get all users
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
 	user := new(User)
@@ -186,7 +186,7 @@ func main() {
 	lambda.Start(handler)
 }
 
-func sendLogs(req *events.APIGatewayProxyRequest, severity int, action int, resource string, dynaClient dynamodbiface.DynamoDBAPI, err error) error {
+func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resource string, dynaClient dynamodbiface.DynamoDBAPI, err error) error {
 	LOGS_TABLE := os.Getenv("LOGS_TABLE")
 	//create log struct
 	log := Log{}

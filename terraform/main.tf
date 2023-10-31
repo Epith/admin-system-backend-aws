@@ -15,6 +15,7 @@ provider "aws" {
     region = var.region
 }
 
+# DynamoDB Tables
 resource "aws_dynamodb_table" "users_table" {
     name = "users"
     billing_mode = "PAY_PER_REQUEST"
@@ -50,6 +51,21 @@ resource "aws_dynamodb_table" "points_table" {
     }
 }
 
+resource "aws_dynamodb_table" "roles_table" {
+    name = "roles"
+    billing_mode = "PAY_PER_REQUEST"
+    hash_key = "role"
+    attribute {
+        name = "role"
+        type = "S"
+    }
+
+    tags = {
+        Name = "dynamodb-roles"
+    }
+}
+
+# Lambda DynamoDB Access Role and Policy
 resource "aws_iam_role" "dynamodb_access_role" {
     name = "DynamoDBAccessRole"
 
@@ -89,6 +105,7 @@ resource "aws_iam_policy" "dynamodb_access_policy" {
         Resource = [
             aws_dynamodb_table.users_table.arn,
             aws_dynamodb_table.points_table.arn,
+            aws_dynamodb_table.roles_table.arn,
         ],
       },
     ],

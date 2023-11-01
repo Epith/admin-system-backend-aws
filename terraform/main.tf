@@ -92,10 +92,6 @@ resource "aws_dynamodb_table" "makers_table" {
     type = "B"
   }
 
-  tags = {
-    Name = "dynamodb-makers"
-  }
-
   # Global Secondary Index for maker_id as PK and request_status as SK
   global_secondary_index {
     name = "maker_id_request_status_index"
@@ -113,6 +109,11 @@ resource "aws_dynamodb_table" "makers_table" {
 
     projection_type = "ALL"
   }
+
+  tags = {
+    Name = "dynamodb-makers"
+  }
+  
 }
 
 resource "aws_dynamodb_table" "roles_table" {

@@ -54,7 +54,7 @@ Resources:
   GetCheckerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/get-makers/
+      CodeUri: functions/get-checkers/
       Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
       Events:
         Api:

@@ -111,12 +111,15 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		TableName: aws.String(userTable),
 	}
 
-	_, err := dynaClient.GetItem(input)
+	result, err := dynaClient.GetItem(input)
 	if err != nil {
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorFailedToFetchRecordID)
+	}
+	if len(result.Item) == 0 {
+		return nil, errors.New(ErrorInvalidUserData)
 	}
 
 	userpoint.Points_ID = uuid.NewString()

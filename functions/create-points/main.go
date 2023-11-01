@@ -111,8 +111,8 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		TableName: aws.String(userTable),
 	}
 
-	_, err := dynaClient.GetItem(input)
-	if err != nil {
+	result, err := dynaClient.GetItem(input)
+	if err != nil || result == nil {
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}

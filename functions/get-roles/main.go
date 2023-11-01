@@ -61,7 +61,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 	dynaClient := dynamodb.New(awsSession)
 
-	//check if id specified, if yes get single role from dynamo
+	//check if role specified, if yes get single role from dynamo
 	if len(id) > 0 {
 		res, err := FetchRoleByID(id, request, ROLES_TABLE, dynaClient)
 		if err != nil {

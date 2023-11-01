@@ -41,12 +41,14 @@ var (
 	ErrorInvalidUserData       = "invalid user data"
 	ErrorCouldNotMarshalItem   = "could not marshal item"
 	ErrorCouldNotDynamoPutItem = "could not dynamo put item"
+	ErrorFailedToFetchRecordID = "failed to fetch record by uuid"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//getting variables
 	region := os.Getenv("AWS_REGION")
 	POINTS_TABLE := os.Getenv("POINTS_TABLE")
+	USER_TABLE := os.Getenv("USER_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -62,7 +64,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	dynaClient := dynamodb.New(awsSession)
 
 	//calling create point to dynamo func
-	res, err := CreateUserPoint(request, POINTS_TABLE, dynaClient)
+	res, err := CreateUserPoint(request, POINTS_TABLE, USER_TABLE, dynaClient)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
@@ -79,7 +81,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, err
 }
 
-func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
+func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTable string, dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
 	var userpoint UserPoint
 
 	//marshall body to point struct
@@ -97,6 +99,24 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 			log.Println("Logging err :", logErr)
 		}
 		return nil, err
+	}
+
+	//check if user exists
+	input := &dynamodb.GetItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"user_id": {
+				S: aws.String(userpoint.User_ID),
+			},
+		},
+		TableName: aws.String(userTable),
+	}
+
+	_, err := dynaClient.GetItem(input)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
 
 	userpoint.Points_ID = uuid.NewString()

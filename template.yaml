@@ -139,6 +139,7 @@ Resources:
       Environment: 
         Variables:
           POINTS_TABLE: points
+          USER_TABLE: users
           LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
@@ -228,6 +229,78 @@ Resources:
             Method: GET
       Environment: 
         Variables:
+            LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  GetRolesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get-roles/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /roles
+            Method: GET
+      Environment: 
+        Variables:
+            ROLES_TABLE: roles
+            LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  CreateRolesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/create-roles/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /roles
+            Method: POST
+      Environment: 
+        Variables:
+            ROLES_TABLE: roles
+            LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  UpdateRolesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/update-roles/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /roles
+            Method: PUT
+      Environment: 
+        Variables:
+            ROLES_TABLE: roles
+            LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  DeleteRolesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/delete-roles/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /roles
+            Method: DELETE
+      Environment: 
+        Variables:
+            ROLES_TABLE: roles
             LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile

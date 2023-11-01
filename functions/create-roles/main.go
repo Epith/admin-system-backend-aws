@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -18,6 +19,11 @@ import (
 	"github.com/google/uuid"
 )
 
+type Role struct {
+	Role   string              `json:"role"`
+	Access map[string][]string `json:"access"`
+}
+
 type Log struct {
 	Log_ID          string      `json:"log_id"`
 	Severity        int         `json:"severity"`
@@ -31,15 +37,19 @@ type Log struct {
 }
 
 var (
-	ErrorInvalidUUID        = "invalid UUID"
-	ErrorCouldNotDeleteItem = "could not delete item"
+	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
+	ErrorInvalidRoleData         = "invalid role data"
+	ErrorInvalidRole             = "invalid role"
+	ErrorInvalidAccess           = "invalid access"
+	ErrorInvalidUUID             = "invalid UUID"
+	ErrorCouldNotMarshalItem     = "could not marshal item"
+	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	//getting variables
-	id := request.QueryStringParameters["id"]
+	//get variables
 	region := os.Getenv("AWS_REGION")
-	USER_TABLE := os.Getenv("USER_TABLE")
+	ROLES_TABLE := os.Getenv("ROLES_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -54,56 +64,76 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 	dynaClient := dynamodb.New(awsSession)
 
-	//check if id is supplied, if yes call delete user dynamo func
-	if len(id) > 0 {
-		res := DeleteUser(id, request, USER_TABLE, dynaClient)
-		if res != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode: 404,
-				Body:       string("Error deleting User"),
-				Headers:    map[string]string{"content-Type": "application/json"},
-			}, res
-		}
+	//calling create role in dynamo func
+	res, err := CreateRole(request, ROLES_TABLE, dynaClient)
+	if err != nil {
 		return events.APIGatewayProxyResponse{
-			Body:       "Record successfully deleted",
-			StatusCode: 200,
+			StatusCode: 404,
+			Body:       string("Error creating role"),
 			Headers:    map[string]string{"content-Type": "application/json"},
-		}, nil
+		}, err
 	}
-
-	if logErr := sendLogs(request, 2, 4, "user", dynaClient, err); logErr != nil {
-		log.Println("Logging err :", logErr)
-	}
-
+	body, _ := json.Marshal(res)
+	stringBody := string(body)
 	return events.APIGatewayProxyResponse{
-		Body:       "User ID missing",
-		StatusCode: 404,
-	}, errors.New(ErrorInvalidUUID)
+		Body:       stringBody,
+		StatusCode: 200,
+		Headers:    map[string]string{"content-Type": "application/json"},
+	}, nil
 }
 
-func DeleteUser(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) error {
-	//attempt to delete user in dynamo
-	input := &dynamodb.DeleteItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			"user_id": {
-				S: aws.String(id),
-			},
-		},
-		TableName: aws.String(tableName),
-	}
-	_, err := dynaClient.DeleteItem(input)
-	if err != nil {
-		if logErr := sendLogs(req, 3, 4, "user", dynaClient, err); logErr != nil {
+func CreateRole(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (
+	*Role,
+	error,
+) {
+	var role Role
+
+	//marshal body into role
+	if err := json.Unmarshal([]byte(req.Body), &role); err != nil {
+		err = errors.New(ErrorInvalidRoleData)
+		if logErr := sendLogs(req, 2, 2, "role", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
-		return errors.New(ErrorCouldNotDeleteItem)
+		return nil, err
 	}
 
-	if logErr := sendLogs(req, 1, 4, "user", dynaClient, err); logErr != nil {
+	//error checks
+	if len(role.Role) == 0 {
+		err := errors.New(ErrorInvalidRole)
+		if logErr := sendLogs(req, 2, 2, "role", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, err
+	}
+
+	//putting role into dynamo
+	av, err := dynamodbattribute.MarshalMap(role)
+
+	if err != nil {
+		if logErr := sendLogs(req, 3, 2, "role", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorCouldNotMarshalItem)
+	}
+
+	input := &dynamodb.PutItemInput{
+		Item:      av,
+		TableName: aws.String(tableName),
+	}
+
+	_, err = dynaClient.PutItem(input)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 2, "role", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorCouldNotDynamoPutItem)
+	}
+
+	if logErr := sendLogs(req, 1, 2, "role", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
 
-	return nil
+	return &role, nil
 }
 
 func main() {

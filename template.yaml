@@ -62,6 +62,7 @@ Resources:
       Environment: 
         Variables:
           POINTS_TABLE: points
+          USER_TABLE: users
           LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile

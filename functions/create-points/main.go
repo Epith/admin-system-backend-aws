@@ -113,7 +113,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 
 	result, err := dynaClient.GetItem(input)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
+		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorFailedToFetchRecordID)
@@ -129,7 +129,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 	av, err := dynamodbattribute.MarshalMap(userpoint)
 
 	if err != nil {
-		if logErr := sendLogs(req, 3, 2, "point", dynaClient, err); logErr != nil {
+		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorCouldNotMarshalItem)

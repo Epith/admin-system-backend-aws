@@ -60,7 +60,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
-            Path: /makers
+            Path: /checkers
             Method: GET
       Environment: 
         Variables:

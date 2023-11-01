@@ -151,9 +151,9 @@ func FetchUsersPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
 
-	userpoint := new(UserPoint)
 	item := new([]UserPoint)
 	for _, i := range result.Items {
+		userpoint := new(UserPoint)
 		err := dynamodbattribute.UnmarshalMap(i, userpoint)
 		if err != nil {
 			if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {

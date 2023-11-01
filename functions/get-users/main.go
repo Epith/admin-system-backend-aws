@@ -139,7 +139,6 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]User, error) {
 	//get all users
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
-	user := new(User)
 	item := new([]User)
 
 	input := &dynamodb.ScanInput{
@@ -163,6 +162,7 @@ func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		}
 
 		for _, i := range result.Items {
+			user := new(User)
 			err := dynamodbattribute.UnmarshalMap(i, user)
 			if err != nil {
 				if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {

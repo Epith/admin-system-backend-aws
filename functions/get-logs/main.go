@@ -131,7 +131,6 @@ func FetchLogByID(id string, req events.APIGatewayProxyRequest, tableName string
 func FetchLogs(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]Log, error) {
 	//get all logs
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
-	logItem := new(Log)
 	item := new([]Log)
 
 	input := &dynamodb.ScanInput{
@@ -155,6 +154,7 @@ func FetchLogs(req events.APIGatewayProxyRequest, tableName string, dynaClient d
 		}
 
 		for _, i := range result.Items {
+			logItem := new(Log)
 			err := dynamodbattribute.UnmarshalMap(i, logItem)
 			if err != nil {
 				if logErr := sendLogs(req, 3, 1, "log", dynaClient, err); logErr != nil {

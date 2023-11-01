@@ -136,7 +136,6 @@ func FetchRoleByID(id string, req events.APIGatewayProxyRequest, tableName strin
 func FetchRoles(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]Role, error) {
 	//get all roles
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
-	roleItem := new(Role)
 	item := new([]Role)
 
 	input := &dynamodb.ScanInput{
@@ -160,6 +159,7 @@ func FetchRoles(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		}
 
 		for _, i := range result.Items {
+			roleItem := new(Role)
 			err := dynamodbattribute.UnmarshalMap(i, roleItem)
 			if err != nil {
 				if logErr := sendLogs(req, 3, 1, "role", dynaClient, err); logErr != nil {

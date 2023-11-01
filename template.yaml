@@ -12,6 +12,83 @@ Globals:
     Timeout: 5
 
 Resources:
+
+  GetMakerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get-makers/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /makers
+            Method: GET
+      Environment: 
+        Variables:
+          MAKER_TABLE: makers
+          LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  CreateMakerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/create-makers/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /makers
+            Method: POST
+      Environment: 
+        Variables:
+            USER_TABLE: users
+            POINTS_TABLE: points
+            MAKER_TABLE: makers
+            LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  GetCheckerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get-makers/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /makers
+            Method: GET
+      Environment: 
+        Variables:
+          MAKER_TABLE: makers
+          LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+  
+  UpdateCheckerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/update-checkers/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /checkers
+            Method: PUT
+      Environment: 
+        Variables:
+            USER_TABLE: users
+            POINTS_TABLE: points
+            MAKER_TABLE: makers
+            LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
   GetPointsFunction:
     Type: AWS::Serverless::Function
     Properties:

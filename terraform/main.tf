@@ -94,7 +94,7 @@ resource "aws_dynamodb_table" "makers_table" {
 
   # Global Secondary Index for maker_id as PK and request_status as SK
   global_secondary_index {
-    name = "maker_id_request_status_index"
+    name = "maker_id-request_status-index"
     hash_key = "maker_id"
     range_key = "request_status"
 
@@ -103,7 +103,7 @@ resource "aws_dynamodb_table" "makers_table" {
 
   # Global Secondary Index for checker_role as PK and request_status as SK
   global_secondary_index {
-    name = "checker_role_request_status_index"
+    name = "checker_role-request_status-index"
     hash_key = "checker_role"
     range_key = "request_status"
 

@@ -86,6 +86,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	return events.APIGatewayProxyResponse{
 		Body:       "Role ID missing",
 		StatusCode: 404,
+		Headers:    map[string]string{"content-Type": "application/json"},
 	}, errors.New(ErrorInvalidRole)
 }
 

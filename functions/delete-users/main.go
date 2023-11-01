@@ -78,6 +78,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	return events.APIGatewayProxyResponse{
 		Body:       "User ID missing",
 		StatusCode: 404,
+		Headers:    map[string]string{"content-Type": "application/json"},
 	}, errors.New(ErrorInvalidUUID)
 }
 

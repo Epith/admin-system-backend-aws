@@ -18,6 +18,11 @@ import (
 	"github.com/google/uuid"
 )
 
+type Role struct {
+	Role   string              `json:"role"`
+	Access map[string][]string `json:"access"`
+}
+
 type Log struct {
 	Log_ID          string      `json:"log_id"`
 	Severity        int         `json:"severity"`
@@ -31,15 +36,18 @@ type Log struct {
 }
 
 var (
-	ErrorInvalidUUID        = "invalid UUID"
-	ErrorCouldNotDeleteItem = "could not delete item"
+	ErrorInvalidRole             = "invalid Role"
+	ErrorCouldNotDeleteItem      = "could not delete item"
+	ErrorRoleDoesNotExist        = "role does not exist"
+	ErrorFailedToFetchRecordID   = "failed to fetch record by role"
+	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//getting variables
-	id := request.QueryStringParameters["id"]
+	role := request.QueryStringParameters["role"]
 	region := os.Getenv("AWS_REGION")
-	USER_TABLE := os.Getenv("USER_TABLE")
+	ROLES_TABLE := os.Getenv("ROLES_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -54,13 +62,13 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 	dynaClient := dynamodb.New(awsSession)
 
-	//check if id is supplied, if yes call delete user dynamo func
-	if len(id) > 0 {
-		res := DeleteUser(id, request, USER_TABLE, dynaClient)
+	//check if role is supplied, if yes call delete role dynamo func
+	if len(role) > 0 {
+		res := DeleteRole(role, request, ROLES_TABLE, dynaClient)
 		if res != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
-				Body:       string("Error deleting User"),
+				Body:       string("Error deleting Role"),
 				Headers:    map[string]string{"content-Type": "application/json"},
 			}, res
 		}
@@ -71,21 +79,31 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, nil
 	}
 
-	if logErr := sendLogs(request, 2, 4, "user", dynaClient, err); logErr != nil {
+	if logErr := sendLogs(request, 2, 4, "role", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
 
 	return events.APIGatewayProxyResponse{
-		Body:       "User ID missing",
+		Body:       "Role ID missing",
 		StatusCode: 404,
-	}, errors.New(ErrorInvalidUUID)
+	}, errors.New(ErrorInvalidRole)
 }
 
-func DeleteUser(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) error {
-	//attempt to delete user in dynamo
+func DeleteRole(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) error {
+	//checking if role exist
+	currentRole, _ := FetchRoleByID(id, req, tableName, dynaClient)
+	if currentRole != nil && len(currentRole.Role) == 0 {
+		err := errors.New(ErrorRoleDoesNotExist)
+		if logErr := sendLogs(req, 2, 3, "role", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return err
+	}
+
+	//attempt to delete role in dynamo
 	input := &dynamodb.DeleteItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
-			"user_id": {
+			"role": {
 				S: aws.String(id),
 			},
 		},
@@ -93,17 +111,51 @@ func DeleteUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 	}
 	_, err := dynaClient.DeleteItem(input)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 4, "user", dynaClient, err); logErr != nil {
+		if logErr := sendLogs(req, 3, 4, "role", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
 		return errors.New(ErrorCouldNotDeleteItem)
 	}
 
-	if logErr := sendLogs(req, 1, 4, "user", dynaClient, err); logErr != nil {
+	if logErr := sendLogs(req, 1, 4, "role", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
 
 	return nil
+}
+
+func FetchRoleByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*Role, error) {
+	//get single role from dynamo
+	input := &dynamodb.GetItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"role": {
+				S: aws.String(id),
+			},
+		},
+		TableName: aws.String(tableName),
+	}
+
+	result, err := dynaClient.GetItem(input)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "role", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToFetchRecordID)
+	}
+
+	item := new(Role)
+	err = dynamodbattribute.UnmarshalMap(result.Item, item)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "role", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToUnmarshalRecord)
+	}
+
+	if logErr := sendLogs(req, 1, 1, "role", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
+	}
+	return item, nil
 }
 
 func main() {

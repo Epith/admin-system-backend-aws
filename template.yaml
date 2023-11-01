@@ -192,6 +192,42 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
+  UpdateRolesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/update-roles/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /roles
+            Method: PUT
+      Environment: 
+        Variables:
+            ROLES_TABLE: roles
+            LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  DeleteRolesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/delete-roles/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /roles
+            Method: DELETE
+      Environment: 
+        Variables:
+            ROLES_TABLE: roles
+            LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM

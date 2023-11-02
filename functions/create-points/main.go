@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -76,10 +75,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	//calling create point to dynamo func
 	res, err := CreateUserPoint(request, POINTS_TABLE, USER_TABLE, dynaClient)
-	log.Println("retieved value")
-	log.Println(res)
-	log.Println(err)
 	if err != nil {
+		log.Printf("I am now in the error")
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       "Error creating point account",
@@ -102,7 +99,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTable string, dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
 	var userpoint UserPoint
 
-	log.Printf("error pint 1")
 	//marshall body to point struct
 	if err := json.Unmarshal([]byte(req.Body), &userpoint); err != nil {
 		if logErr := sendLogs(req, 2, 2, "point", dynaClient, err); logErr != nil {
@@ -111,7 +107,6 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		return nil, errors.New(ErrorInvalidUserData)
 	}
 
-	log.Printf("error pint 2")
 	if userpoint.User_ID == "" {
 		err := errors.New(ErrorInvalidUserData)
 		if logErr := sendLogs(req, 2, 2, "point", dynaClient, err); logErr != nil {
@@ -119,7 +114,6 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		}
 		return nil, err
 	}
-	log.Printf("error pint 3")
 
 	//check if user_id is supplied
 	input := &dynamodb.GetItemInput{
@@ -130,7 +124,6 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		},
 		TableName: aws.String(userTable),
 	}
-	log.Printf("error pint 4")
 
 	result, err := dynaClient.GetItem(input)
 	if err != nil {
@@ -139,18 +132,13 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		}
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
-	log.Printf("error pint 5")
 
 	if result.Item == nil {
-		fmt.Println("fuck your mother")
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
-		log.Printf("trying to return")
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
-
-	log.Printf("error pint 6")
 
 	userpoint.Points_ID = uuid.NewString()
 	userpoint.Points = 0
@@ -164,7 +152,6 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		}
 		return nil, errors.New(ErrorCouldNotMarshalItem)
 	}
-	log.Printf("error pint 7")
 
 	data := &dynamodb.PutItemInput{
 		Item:      av,
@@ -179,7 +166,6 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		}
 		return nil, errors.New(ErrorCouldNotDynamoPutItem)
 	}
-	log.Printf("error pint 8")
 
 	if logErr := sendLogs(req, 1, 2, "point", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)

@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
@@ -41,7 +42,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	cognitoClient := cognitoidentityprovider.New(awsSession)
 	USER_TABLE := os.Getenv("USER_TABLE")
 	if len(id) > 0 {
-		res := DeleteUser(id, role, USER_TABLE, dynaClient)
+		res := DeleteUser(id, role, USER_TABLE, dynaClient, cognitoClient)
 		if res != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
@@ -58,15 +59,18 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, errors.New(ErrorInvalidUUID)
 }
 
-func DeleteUser(id string, role string, tableName string, dynaClient dynamodbiface.DynamoDBAPI) error {
-	
-	input := &cognitoidentityprovider.AdminDeleteUserInput{
-		"Username": aws.String(id),
-		"UserPoolId": aws.String(role)
-	}if err != nil {
-		return errors.New(InternalErrorException)
+func DeleteUser(id string, role string, tableName string, dynaClient dynamodbiface.DynamoDBAPI, cognitoClient CognitoIdentityProvider) error {
+
+	cognitoInput := &cognitoidentityprovider.AdminDeleteUserInput{
+		Username:   aws.String(id),
+		UserPoolId: aws.String(role),
 	}
-	
+
+	_, cognitoErr := cognitoClient.AdminDeleteUser(cognitoInput)
+	if cognitoErr != nil {
+		return errors.New(cognitoidentityprovider.ErrCodeInternalErrorException)
+	}
+
 	input := &dynamodb.DeleteItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
 			"user_id": {

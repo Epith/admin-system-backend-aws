@@ -10,11 +10,11 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/google/uuid"
-	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
 )
 
 type User struct {
@@ -55,7 +55,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	dynaClient := dynamodb.New(awsSession)
 	cognitoClient := cognitoidentityprovider.New(awsSession)
 	USER_TABLE := os.Getenv("USER_TABLE")
-	res, err := CreateUser(request, USER_TABLE, dynaClient)
+	res, err := CreateUser(request, USER_TABLE, dynaClient, cognitoClient)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
@@ -68,7 +68,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (
+func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI, cognitoClient CognitoIdentityProvider) (
 	*User,
 	error,
 ) {
@@ -107,11 +107,11 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		return nil, errors.New(ErrorCouldNotDynamoPutItem)
 	}
 
-	input := &cognitoidentityprovider.AdminCreateUserInput{
+	cognitoInput := &cognitoidentityprovider.AdminCreateUserInput{
 		DesiredDeliveryMediums: []*string{
 			aws.String("EMAIL"),
 		},
-		MessageAction:     aws.String("SUPPRESS"),
+		MessageAction: aws.String("SUPPRESS"),
 		UserAttributes: []*cognitoidentityprovider.AttributeType{
 			{
 				Name:  aws.String("name"),
@@ -121,14 +121,18 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 				Name:  aws.String("email"),
 				Value: aws.String(user.Email),
 			},
+			{
+				Name:  aws.String("custom:role"),
+				Value: aws.String(user.Role),
+			},
 		},
-		UserPoolId: aws.String(user.Role),
+		UserPoolId: aws.String(""),
 		Username:   aws.String(user.User_ID),
 	}
-	
-	result, err := cognitoClient.AdminCreateUser(input)
-	if err != nil {
-		return nil, errors.New(ErrCodeCodeDeliveryFailureException)
+
+	_, cognitoErr := cognitoClient.AdminCreateUser(cognitoInput)
+	if cognitoErr != nil {
+		return nil, errors.New(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException)
 		// if aerr, ok := err.(awserr.Error); ok {
 		// 	switch aerr.Code() {
 		// 	case cognitoidentityprovider.ErrCodeResourceNotFoundException:
@@ -174,8 +178,6 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	}
 	return &user, nil
 }
-
-func CognitoCreateUser
 
 func IsEmailValid(email string) bool {
 	var rxEmail = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")

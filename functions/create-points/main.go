@@ -83,6 +83,9 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			Headers:    map[string]string{"content-Type": "application/json"},
 		}, err
 	}
+	if res == nil {
+		log.Println("the res is nil")
+	}
 	body, _ := json.Marshal(res)
 	stringBody := string(body)
 	return events.APIGatewayProxyResponse{
@@ -138,8 +141,6 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		fmt.Println("fuck your mother")
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
-		} else {
-			log.Println("ur logging got problem")
 		}
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}

@@ -112,9 +112,6 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		return nil, err
 	}
 
-	userpoint.Points_ID = uuid.NewString()
-	userpoint.Points = 0
-
 	input := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
 			"user_id": {
@@ -134,7 +131,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 
 	fmt.Println("1")
 
-	if result.Item == nil {
+	if result == nil {
 		fmt.Println("fuck your mother")
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
@@ -143,6 +140,9 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 	}
 
 	fmt.Println("2")
+
+	userpoint.Points_ID = uuid.NewString()
+	userpoint.Points = 0
 
 	//putting into dynamo db
 	av, err := dynamodbattribute.MarshalMap(userpoint)

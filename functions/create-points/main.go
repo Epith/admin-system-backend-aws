@@ -125,7 +125,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 	if result.Item == nil || len(result.Item) == 0 {
 		return nil, errors.New(ErrorInvalidUserData)
 	}
-
+	fmt.Println("Possible after error ")
 	userpoint.Points_ID = uuid.NewString()
 	userpoint.Points = 0
 

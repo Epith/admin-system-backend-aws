@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -103,7 +102,6 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		return nil, errors.New(ErrorInvalidUserData)
 	}
 
-	//check if user_id is supplied
 	if userpoint.User_ID == "" {
 		err := errors.New(ErrorInvalidUserData)
 		if logErr := sendLogs(req, 2, 2, "point", dynaClient, err); logErr != nil {
@@ -112,34 +110,35 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		return nil, err
 	}
 
-	input := &dynamodb.GetItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			"user_id": {
-				S: aws.String(userTable),
-			},
-		},
-		TableName: aws.String(tableName),
-	}
+	//check if user_id is supplied
+	// input := &dynamodb.GetItemInput{
+	// 	Key: map[string]*dynamodb.AttributeValue{
+	// 		"user_id": {
+	// 			S: aws.String(userTable),
+	// 		},
+	// 	},
+	// 	TableName: aws.String(tableName),
+	// }
 
-	result, err := dynaClient.GetItem(input)
-	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorFailedToFetchRecordID)
-	}
+	// result, err := dynaClient.GetItem(input)
+	// if err != nil {
+	// 	if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
+	// 		log.Println("Logging err :", logErr)
+	// 	}
+	// 	return nil, errors.New(ErrorFailedToFetchRecordID)
+	// }
 
-	fmt.Println("1")
+	// fmt.Println("1")
 
-	if result == nil {
-		fmt.Println("fuck your mother")
-		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorFailedToFetchRecordID)
-	}
+	// if result == nil {
+	// 	fmt.Println("fuck your mother")
+	// 	if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
+	// 		log.Println("Logging err :", logErr)
+	// 	}
+	// 	return nil, errors.New(ErrorFailedToFetchRecordID)
+	// }
 
-	fmt.Println("2")
+	// fmt.Println("2")
 
 	userpoint.Points_ID = uuid.NewString()
 	userpoint.Points = 0

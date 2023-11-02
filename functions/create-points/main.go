@@ -136,6 +136,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 	// }
 	item := User{}
 	var checkUser User
+	fmt.Println(item)
 	err = dynamodbattribute.UnmarshalMap(result.Item, &item)
 	if err != nil {
 		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {

@@ -111,17 +111,32 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		return nil, err
 	}
 
-	currentUser, _ := FetchUserByID(userpoint.User_ID, req, userTable, dynaClient)
-	if currentUser != nil && len(currentUser.User_ID) == 0 {
-		err := errors.New(ErrorUserDoesNotExist)
-		if logErr := sendLogs(req, 2, 3, "role", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, err
-	}
-
 	userpoint.Points_ID = uuid.NewString()
 	userpoint.Points = 0
+
+	input := &dynamodb.GetItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"user_id": {
+				S: aws.String(userTable),
+			},
+		},
+		TableName: aws.String(tableName),
+	}
+
+	result, err := dynaClient.GetItem(input)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToFetchRecordID)
+	}
+
+	if result == nil || result.Item == nil {
+		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToFetchRecordID)
+	}
 
 	//putting into dynamo db
 	av, err := dynamodbattribute.MarshalMap(userpoint)

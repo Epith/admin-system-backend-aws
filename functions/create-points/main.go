@@ -94,6 +94,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTable string, dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
 	var userpoint UserPoint
 
+	log.Printf("error pint 1")
 	//marshall body to point struct
 	if err := json.Unmarshal([]byte(req.Body), &userpoint); err != nil {
 		if logErr := sendLogs(req, 2, 2, "point", dynaClient, err); logErr != nil {
@@ -102,6 +103,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		return nil, errors.New(ErrorInvalidUserData)
 	}
 
+	log.Printf("error pint 2")
 	if userpoint.User_ID == "" {
 		err := errors.New(ErrorInvalidUserData)
 		if logErr := sendLogs(req, 2, 2, "point", dynaClient, err); logErr != nil {
@@ -109,6 +111,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		}
 		return nil, err
 	}
+	log.Printf("error pint 3")
 
 	//check if user_id is supplied
 	// input := &dynamodb.GetItemInput{

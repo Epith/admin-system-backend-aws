@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -131,12 +132,17 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
 
-	if result == nil || result.Item == nil {
+	fmt.Println("1")
+
+	if result.Item == nil {
+		fmt.Println("fuck your mother")
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
+
+	fmt.Println("2")
 
 	//putting into dynamo db
 	av, err := dynamodbattribute.MarshalMap(userpoint)

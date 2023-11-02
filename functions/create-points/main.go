@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -112,6 +113,9 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 	}
 
 	result, err := dynaClient.GetItem(input)
+	fmt.Print("Errors: ")
+	fmt.Println(result.GoString())
+	fmt.Println(result.Item)
 	if err != nil {
 		// if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
 		// 	log.Println("Logging err :", logErr)

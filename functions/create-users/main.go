@@ -174,7 +174,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 				Value: aws.String(user.Role),
 			},
 		},
-		UserPoolId: aws.String(""),
+		UserPoolId: aws.String("ap-southeast-1_TGeevv7bn"),
 		Username:   aws.String(user.User_ID),
 	}
 

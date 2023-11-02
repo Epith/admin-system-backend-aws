@@ -142,7 +142,10 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		}
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
-	fmt.Println("Possible after error ")
+
+	if item != nil && len(item.User_ID) == 0 {
+		return nil, errors.New(ErrorInvalidUserData)
+	}
 
 	userpoint.Points_ID = uuid.NewString()
 	userpoint.Points = 0

@@ -25,6 +25,18 @@ resource "aws_dynamodb_table" "users_table" {
         type = "S"
     }
 
+    attribute {
+        name = "role"
+        type = "S"
+    }
+
+    global_secondary_index {
+        name = "role-index"
+        hash_key = "role"
+        projection_type = "INCLUDE"
+        non_key_attributes = ["email"]
+    }
+
     tags = {
         Name = "dynamodb-users"
     }
@@ -73,23 +85,8 @@ resource "aws_dynamodb_table" "makers_table" {
   }
 
   attribute {
-    name = "checker_id"
-    type = "S"
-  }
-
-  attribute {
     name = "request_status"
     type = "S"
-  }
-
-  attribute {
-    name = "resource_type"
-    type = "S"
-  }
-
-  attribute {
-    name = "request_data"
-    type = "B"
   }
 
   # Global Secondary Index for maker_id as PK and request_status as SK

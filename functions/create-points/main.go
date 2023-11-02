@@ -86,6 +86,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if res == nil {
 		log.Println("the res is nil")
 	}
+	log.Println(res)
 	body, _ := json.Marshal(res)
 	stringBody := string(body)
 	return events.APIGatewayProxyResponse{

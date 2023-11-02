@@ -27,12 +27,9 @@ type User struct {
 	Role      string `json:"role"`
 }
 
-type Access struct {
-	Role []struct {
-		Endpoint struct {
-			Method []string `json:"method"`
-		} `json:"endpoint"`
-	} `json:"role"`
+type Role struct {
+	Role   string              `json:"role"`
+	Access map[string][]string `json:"access"`
 }
 
 func handler(request events.APIGatewayV2CustomAuthorizerV2Request) events.APIGatewayV2CustomAuthorizerSimpleResponse {
@@ -63,12 +60,13 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) events.APIGat
 		access, err2 := GetAccessByRole(role, ROLE_TABLE, dynaClient)
 		if err2 == nil {
 			//Check Roles Item if Role provides permission
-			for j := 0; j < len(access.Role); j++ {
-				if access.Role[j].Endpoint == route {
-					authorised = slices.Contains(access.Role[j].Endpoint.Method, method)
-					break
-				}
-			}
+			authorised = slices.Contains(access.Access[route], method)
+			// for j := 0; j < len(access.); j++ {
+			// 	if access.Role.Endpoint == route {
+			// 		authorised = slices.Contains(access.Role[j].Endpoint.Method, method)
+			// 		break
+			// 	}
+			// }
 		}
 	}
 
@@ -100,7 +98,7 @@ func FetchUserByID(id, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (
 	return item, nil
 }
 
-func GetAccessByRole(role, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*Access, error) {
+func GetAccessByRole(role, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*Role, error) {
 	input := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
 			"role": {
@@ -115,7 +113,7 @@ func GetAccessByRole(role, tableName string, dynaClient dynamodbiface.DynamoDBAP
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
 
-	item := new(Access)
+	item := new(Role)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)

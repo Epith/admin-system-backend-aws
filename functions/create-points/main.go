@@ -122,6 +122,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		// }
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
+	fmt.Println("after first error check")
 	// if result.Item == nil || len(result.Item) == 0 {
 	// 	return nil, errors.New(ErrorInvalidUserData)
 	// }

@@ -145,6 +145,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
 	fmt.Println(item)
+	fmt.Println(checkUser)
 	if item == checkUser {
 		return nil, errors.New(ErrorInvalidUserData)
 	}

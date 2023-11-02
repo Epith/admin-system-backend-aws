@@ -26,6 +26,14 @@ type UserPoint struct {
 	Points    int    `json:"points"`
 }
 
+type User struct {
+	Email     string `json:"email"`
+	User_ID   string `json:"user_id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Role      string `json:"role"`
+}
+
 type Log struct {
 	Log_ID          string      `json:"log_id"`
 	Severity        int         `json:"severity"`
@@ -39,10 +47,11 @@ type Log struct {
 }
 
 var (
-	ErrorInvalidUserData       = "invalid user data"
-	ErrorCouldNotMarshalItem   = "could not marshal item"
-	ErrorCouldNotDynamoPutItem = "could not dynamo put item"
-	ErrorFailedToFetchRecordID = "failed to fetch record by uuid"
+	ErrorInvalidUserData         = "invalid user data"
+	ErrorCouldNotMarshalItem     = "could not marshal item"
+	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
+	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
+	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -122,14 +131,19 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		// }
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
-	fmt.Println("after first error check")
 	// if result.Item == nil || len(result.Item) == 0 {
 	// 	return nil, errors.New(ErrorInvalidUserData)
 	// }
-	if result.Item == nil {
-		return nil, errors.New(ErrorInvalidUserData)
+	item := new(User)
+	err = dynamodbattribute.UnmarshalMap(result.Item, item)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
 	fmt.Println("Possible after error ")
+
 	userpoint.Points_ID = uuid.NewString()
 	userpoint.Points = 0
 

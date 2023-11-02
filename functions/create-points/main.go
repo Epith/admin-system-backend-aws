@@ -138,6 +138,8 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		fmt.Println("fuck your mother")
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
+		} else {
+			log.Println("ur logging got problem")
 		}
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
@@ -156,6 +158,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		}
 		return nil, errors.New(ErrorCouldNotMarshalItem)
 	}
+	log.Printf("error pint 7")
 
 	data := &dynamodb.PutItemInput{
 		Item:      av,
@@ -170,6 +173,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		}
 		return nil, errors.New(ErrorCouldNotDynamoPutItem)
 	}
+	log.Printf("error pint 8")
 
 	if logErr := sendLogs(req, 1, 2, "point", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)

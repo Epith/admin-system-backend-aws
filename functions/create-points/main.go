@@ -146,7 +146,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 	}
 	fmt.Println(item)
 	fmt.Println(checkUser)
-	if item == checkUser {
+	if &item == &checkUser {
 		return nil, errors.New(ErrorInvalidUserData)
 	}
 

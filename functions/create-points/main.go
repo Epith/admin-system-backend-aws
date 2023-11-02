@@ -135,6 +135,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 	// 	return nil, errors.New(ErrorInvalidUserData)
 	// }
 	item := User{}
+	var checkUser User
 	err = dynamodbattribute.UnmarshalMap(result.Item, &item)
 	if err != nil {
 		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
@@ -143,7 +144,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
 	fmt.Println(item)
-	if &item == nil {
+	if item == checkUser {
 		return nil, errors.New(ErrorInvalidUserData)
 	}
 

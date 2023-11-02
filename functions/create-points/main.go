@@ -142,7 +142,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		}
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
-
+	fmt.Println(item)
 	if item != nil && len(item.User_ID) == 0 {
 		return nil, errors.New(ErrorInvalidUserData)
 	}

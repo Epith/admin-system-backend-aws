@@ -81,7 +81,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			StatusCode: 404,
 			Body:       "Error creating point account",
 			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+		}, nil
 	}
 	if res == nil {
 		log.Println("the res is nil")

@@ -13,6 +13,19 @@ Globals:
 
 Resources:
 
+  # AscendaApi:
+  #   Type: AWS::Serverless::HttpApi
+  #   Properties:
+  #     StageName: Prod
+  #     CorsConfiguration:
+  #       AllowMethods: "'GET,PUT,POST,DELETE,OPTIONS'"
+  #       AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+  #       AllowOrigins: "'*'"
+  #       MaxAge: "'600'"
+  #     Auth:
+  #       DefaultAuthorizer: lambda-authorizer
+  #       AddDefaultAuthorizerToCorsPreflight: false
+
   GetMakerFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -20,6 +33,7 @@ Resources:
       Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
       Events:
         Api:
+          # ApiId: !Ref AscendaApi
           Type: HttpApi
           Properties:
             Path: /makers

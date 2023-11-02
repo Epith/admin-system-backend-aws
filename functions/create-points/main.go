@@ -76,6 +76,9 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	//calling create point to dynamo func
 	res, err := CreateUserPoint(request, POINTS_TABLE, USER_TABLE, dynaClient)
+	log.Println("retieved value")
+	log.Println(res)
+	log.Println(err)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
@@ -143,6 +146,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
+		log.Printf("trying to return")
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
 

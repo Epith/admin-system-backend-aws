@@ -120,6 +120,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		},
 		TableName: aws.String(userTable),
 	}
+	log.Printf("error pint 4")
 
 	result, err := dynaClient.GetItem(input)
 	if err != nil {
@@ -128,8 +129,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		}
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
-
-	fmt.Println("1")
+	log.Printf("error pint 5")
 
 	if result == nil {
 		fmt.Println("fuck your mother")
@@ -139,7 +139,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
 
-	fmt.Println("2")
+	log.Printf("error pint 6")
 
 	userpoint.Points_ID = uuid.NewString()
 	userpoint.Points = 0

@@ -38,8 +38,8 @@ type Access struct {
 func handler(request events.APIGatewayV2CustomAuthorizerV2Request) events.APIGatewayV2CustomAuthorizerSimpleResponse {
 
 	authorised := false
-	role := request.Headers.Role
-	id := request.IdentitySource["id"]
+	role := request.Headers["Role"]
+	id := request.IdentitySource[0]
 	route := request.RouteKey
 	method := request.RequestContext.HTTP.Method
 	region := os.Getenv("AWS_REGION")
@@ -54,7 +54,7 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) events.APIGat
 
 	dynaClient := dynamodb.New(awsSession)
 	USER_TABLE := os.Getenv("USER_TABLE")
-	ROLE_TABLE := os.Getenv("ROLE_TABLE")
+	ROLE_TABLE := os.Getenv("ROLES_TABLE")
 
 	//Check User Table if role exist?
 	item, err := FetchUserByID(id, USER_TABLE, dynaClient)

@@ -26,6 +26,7 @@ type User struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Role      string `json:"role"`
+	Password  string `json:"password"`
 }
 
 type Log struct {
@@ -93,7 +94,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI, cognitoClient CognitoIdentityProvider) (
+func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI, cognitoClient *cognitoidentityprovider.CognitoIdentityProvider) (
 	*User,
 	error,
 ) {
@@ -155,7 +156,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		return nil, errors.New(ErrorCouldNotDynamoPutItem)
 	}
 
-	cognitoInput := &cognitoidentityprovider.AdminCreateUserInput{
+	createInput := &cognitoidentityprovider.AdminCreateUserInput{
 		DesiredDeliveryMediums: []*string{
 			aws.String("EMAIL"),
 		},
@@ -178,51 +179,21 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		Username:   aws.String(user.User_ID),
 	}
 
-	_, cognitoErr := cognitoClient.AdminCreateUser(cognitoInput)
-	if cognitoErr != nil {
+	_, createErr := cognitoClient.AdminCreateUser(createInput)
+	if createErr != nil {
 		return nil, errors.New(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException)
-		// if aerr, ok := err.(awserr.Error); ok {
-		// 	switch aerr.Code() {
-		// 	case cognitoidentityprovider.ErrCodeResourceNotFoundException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeResourceNotFoundException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodeInvalidParameterException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeInvalidParameterException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodeUserNotFoundException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeUserNotFoundException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodeUsernameExistsException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeUsernameExistsException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodeInvalidPasswordException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeInvalidPasswordException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodeCodeDeliveryFailureException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodeUnexpectedLambdaException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeUnexpectedLambdaException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodeUserLambdaValidationException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeUserLambdaValidationException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodeInvalidLambdaResponseException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeInvalidLambdaResponseException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodePreconditionNotMetException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodePreconditionNotMetException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodeInvalidSmsRoleAccessPolicyException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeInvalidSmsRoleAccessPolicyException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodeInvalidSmsRoleTrustRelationshipException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeInvalidSmsRoleTrustRelationshipException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodeTooManyRequestsException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeTooManyRequestsException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodeNotAuthorizedException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeNotAuthorizedException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodeUnsupportedUserStateException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeUnsupportedUserStateException, aerr.Error())
-		// 	case cognitoidentityprovider.ErrCodeInternalErrorException:
-		// 		fmt.Println(cognitoidentityprovider.ErrCodeInternalErrorException, aerr.Error())
-		// 	default:
-		// 		fmt.Println(aerr.Error())
-		// 	}
-		// } else {
-		// 	// Print the error, cast err to awserr.Error to get the Code and
-		// 	// Message from an error.
-		// 	fmt.Println(err.Error())
-		// }
+	}
+
+	passwdInput := &cognitoidentityprovider.AdminSetUserPasswordInput{
+		Password:   aws.String(user.Password),
+		Permanent:  aws.Bool(true),
+		Username:   aws.String(user.User_ID),
+		UserPoolId: aws.String("ap-southeast-1_TGeevv7bn"),
+	}
+
+	_, passwdErr := cognitoClient.AdminSetUserPassword(passwdInput)
+	if passwdErr != nil {
+		return nil, errors.New(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException)
 	}
 
 	if logErr := sendLogs(req, 1, 2, "user", dynaClient, err); logErr != nil {

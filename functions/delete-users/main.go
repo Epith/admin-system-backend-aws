@@ -84,7 +84,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, errors.New(ErrorInvalidUUID)
 }
 
-func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI, cognitoClient CognitoIdentityProvider) error {
+func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI, cognitoClient *cognitoidentityprovider.CognitoIdentityProvider) error {
 
 	//attempt to delete user in cognito
 	cognitoInput := &cognitoidentityprovider.AdminDeleteUserInput{

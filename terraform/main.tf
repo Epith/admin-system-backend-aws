@@ -25,6 +25,17 @@ resource "aws_dynamodb_table" "users_table" {
         type = "S"
     }
 
+    attribute {
+        name = "role"
+        type = "S"
+    }
+
+    global_secondary_index {
+        name = "role-index"
+        hash_key = "role"
+        projection_type = "ALL"
+    }
+
     tags = {
         Name = "dynamodb-users"
     }

@@ -134,7 +134,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 	}
 	log.Printf("error pint 5")
 
-	if result == nil {
+	if result.Item == nil {
 		fmt.Println("fuck your mother")
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)

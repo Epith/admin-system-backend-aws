@@ -19,12 +19,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type UserPoint struct {
-	User_ID   string `json:"user_id"`
-	Points_ID string `json:"points_id"`
-	Points    int    `json:"points"`
-}
-
 type Log struct {
 	Log_ID          string      `json:"log_id"`
 	Severity        int         `json:"severity"`
@@ -40,13 +34,14 @@ type Log struct {
 var (
 	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
 	ErrorFailedToFetchRecord     = "failed to fetch record"
+	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//get variables
-	user_id := request.QueryStringParameters["id"]
+	id := request.QueryStringParameters["id"]
 	region := os.Getenv("AWS_REGION")
-	POINTS_TABLE := os.Getenv("POINTS_TABLE")
+	LOGS_TABLE := os.Getenv("LOGS_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -61,33 +56,35 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 	dynaClient := dynamodb.New(awsSession)
 
-	//check if user id is specified, if yes call get user point from dynamo func
-	if len(user_id) > 0 {
-		res, err := FetchUserPoint(user_id, request, POINTS_TABLE, dynaClient)
+	//check if id specified, if yes get single log from dynamo
+	if len(id) > 0 {
+		res, err := FetchLogByID(id, request, LOGS_TABLE, dynaClient)
 		if err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
-				Body:       string("Error getting point by id"),
+				Body:       string("Error getting log by ID"),
 				Headers:    map[string]string{"content-Type": "application/json"},
 			}, err
 		}
-		stringBody, _ := json.Marshal(res)
+		body, _ := json.Marshal(res)
+		stringBody := string(body)
 		return events.APIGatewayProxyResponse{
-			Body:       string(stringBody),
+			Body:       stringBody,
 			StatusCode: 200,
 			Headers:    map[string]string{"content-Type": "application/json"},
 		}, nil
 	}
 
-	//check if user id is specified, if no call get all user point from dynamo func
-	res, err := FetchUsersPoint(request, POINTS_TABLE, dynaClient)
+	//check if id specified, if no get all logs from dynamo
+	res, err := FetchLogs(request, LOGS_TABLE, dynaClient)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
-			Body:       string("Error getting points"),
+			Body:       string("Error getting logs"),
 			Headers:    map[string]string{"content-Type": "application/json"},
 		}, err
 	}
+
 	body, _ := json.Marshal(res)
 	stringBody := string(body)
 	return events.APIGatewayProxyResponse{
@@ -97,78 +94,86 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]UserPoint, error) {
-	//getting single single user point
-	input := &dynamodb.QueryInput{
-		TableName: aws.String(tableName),
-		KeyConditions: map[string]*dynamodb.Condition{
-			"user_id": {
-				ComparisonOperator: aws.String("EQ"),
-				AttributeValueList: []*dynamodb.AttributeValue{
-					{
-						S: aws.String(user_id),
-					},
-				},
+func FetchLogByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*Log, error) {
+	//get single log from dynamo
+	input := &dynamodb.GetItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"log_id": {
+				S: aws.String(id),
 			},
 		},
+		TableName: aws.String(tableName),
 	}
 
-	result, err := dynaClient.Query(input)
+	result, err := dynaClient.GetItem(input)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
+		if logErr := sendLogs(req, 3, 1, "log", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
-		return nil, errors.New(ErrorFailedToFetchRecord)
+		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
 
-	item := new([]UserPoint)
-	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
+	item := new(Log)
+	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
+		if logErr := sendLogs(req, 3, 1, "log", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
 
-	if logErr := sendLogs(req, 1, 1, "point", dynaClient, err); logErr != nil {
+	if logErr := sendLogs(req, 1, 1, "log", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
-
 	return item, nil
 }
 
-func FetchUsersPoint(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]UserPoint, error) {
-	//getting all user points
+func FetchLogs(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]Log, error) {
+	//get all logs
+	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
+	item := new([]Log)
+
 	input := &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
+		Limit:     aws.Int64(int64(3000)),
 	}
 
-	result, err := dynaClient.Scan(input)
-	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
+	for {
+
+		if len(lastEvaluatedKey) != 0 {
+			input.ExclusiveStartKey = lastEvaluatedKey
 		}
-		return nil, errors.New(ErrorFailedToFetchRecord)
-	}
 
-	item := new([]UserPoint)
-	for _, i := range result.Items {
-		userpoint := new(UserPoint)
-		err := dynamodbattribute.UnmarshalMap(i, userpoint)
+		result, err := dynaClient.Scan(input)
+
 		if err != nil {
-			if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
+			if logErr := sendLogs(req, 3, 1, "log", dynaClient, err); logErr != nil {
 				log.Println("Logging err :", logErr)
 			}
-			return nil, err
+			return nil, errors.New(ErrorFailedToFetchRecord)
 		}
-		*item = append(*item, *userpoint)
-	}
 
-	if logErr := sendLogs(req, 1, 1, "point", dynaClient, err); logErr != nil {
-		log.Println("Logging err :", logErr)
-	}
+		for _, i := range result.Items {
+			logItem := new(Log)
+			err := dynamodbattribute.UnmarshalMap(i, logItem)
+			if err != nil {
+				if logErr := sendLogs(req, 3, 1, "log", dynaClient, err); logErr != nil {
+					log.Println("Logging err :", logErr)
+				}
+				return nil, err
+			}
+			*item = append(*item, *logItem)
+		}
 
-	return item, nil
+		if len(result.LastEvaluatedKey) == 0 {
+			if logErr := sendLogs(req, 1, 1, "log", dynaClient, err); logErr != nil {
+				log.Println("Logging err :", logErr)
+			}
+			return item, nil
+		}
+
+		lastEvaluatedKey = result.LastEvaluatedKey
+	}
 }
 
 func main() {

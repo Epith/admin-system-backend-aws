@@ -12,13 +12,82 @@ Globals:
     Timeout: 5
 
 Resources:
-  AscendaApi:
-      Type: AWS::Serverless::HttpApi
-      Properties:
-        StageName: Prod
-        Auth:
-          DefaultAuthorizer: AWS_IAM
-          EnableIamAuthorizer: true
+
+  GetMakerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get-makers/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /makers
+            Method: GET
+      Environment: 
+        Variables:
+          MAKER_TABLE: makers
+          LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  CreateMakerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/create-makers/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /makers
+            Method: POST
+      Environment: 
+        Variables:
+            USER_TABLE: users
+            POINTS_TABLE: points
+            MAKER_TABLE: makers
+            LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  GetCheckerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get-checkers/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /checkers
+            Method: GET
+      Environment: 
+        Variables:
+          MAKER_TABLE: makers
+          LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+  
+  UpdateCheckerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/update-checkers/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /checkers
+            Method: PUT
+      Environment: 
+        Variables:
+            USER_TABLE: users
+            POINTS_TABLE: points
+            MAKER_TABLE: makers
+            LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
 
   GetPointsFunction:
     Type: AWS::Serverless::Function
@@ -37,6 +106,7 @@ Resources:
       Environment: 
         Variables:
           POINTS_TABLE: points
+          LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -54,6 +124,7 @@ Resources:
       Environment: 
         Variables:
           POINTS_TABLE: points
+          LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
   
@@ -71,6 +142,8 @@ Resources:
       Environment: 
         Variables:
           POINTS_TABLE: points
+          USER_TABLE: users
+          LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -91,6 +164,7 @@ Resources:
       Environment: 
         Variables:
             USER_TABLE: users
+            LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -108,21 +182,27 @@ Resources:
       Environment: 
         Variables:
             USER_TABLE: users
+            LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
-  # UpdateUsersFunction:
-  #   Type: AWS::Serverless::Function
-  #   Properties:
-  #     CodeUri: functions/update-users/
-  #     Events:
-  #       Api:
-  #         Type: HttpApi
-  #         Properties:
-  #           Path: /users
-  #           Method: PUT
-  #   Metadata:
-  #     BuildMethod: makefile
+  UpdateUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/update-users/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /users
+            Method: PUT
+      Environment: 
+        Variables:
+          USER_TABLE: users
+          LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
 
   DeleteUsersFunction:
     Type: AWS::Serverless::Function
@@ -138,6 +218,96 @@ Resources:
       Environment: 
         Variables:
           USER_TABLE: users
+          LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  GetLogsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get-logs/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /logs
+            Method: GET
+      Environment: 
+        Variables:
+            LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  GetRolesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/get-roles/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /roles
+            Method: GET
+      Environment: 
+        Variables:
+            ROLES_TABLE: roles
+            LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  CreateRolesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/create-roles/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /roles
+            Method: POST
+      Environment: 
+        Variables:
+            ROLES_TABLE: roles
+            LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  UpdateRolesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/update-roles/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /roles
+            Method: PUT
+      Environment: 
+        Variables:
+            ROLES_TABLE: roles
+            LOGS_TABLE: logs
+    Metadata:
+      BuildMethod: makefile
+
+  DeleteRolesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/delete-roles/
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /roles
+            Method: DELETE
+      Environment: 
+        Variables:
+            ROLES_TABLE: roles
+            LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 

@@ -1,5 +1,5 @@
 STACK_NAME ?= ascenda-serverless
-FUNCTIONS := get-users create-users delete-users get-points create-points update-points
+FUNCTIONS := get-users get-points get-logs get-roles get-makers get-checkers create-users create-points create-roles create-makers update-points update-users update-roles update-checkers delete-users delete-roles
 GO := go
 
 build:

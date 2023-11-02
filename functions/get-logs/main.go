@@ -20,13 +20,15 @@ import (
 )
 
 type Log struct {
-	Log_ID        string                 `json:"log_id"`
-	Severity      int                    `json:"severity"`
-	User_ID       string                 `json:"user_id"`
-	Action_Type   int                    `json:"action_type"`
-	Resource_Type string                 `json:"resource_type"`
-	Data          map[string]interface{} `json:"data"`
-	Timestamp     time.Time              `json:"timestamp"`
+	Log_ID          string      `json:"log_id"`
+	Severity        int         `json:"severity"`
+	User_ID         string      `json:"user_id"`
+	Action_Type     int         `json:"action_type"`
+	Resource_Type   string      `json:"resource_type"`
+	Body            interface{} `json:"body"`
+	QueryParameters interface{} `json:"query_parameters"`
+	Error           interface{} `json:"error"`
+	Timestamp       time.Time   `json:"timestamp"`
 }
 
 var (
@@ -48,6 +50,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
+			Body:       string("Error setting up aws session"),
+			Headers:    map[string]string{"content-Type": "application/json"},
 		}, err
 	}
 	dynaClient := dynamodb.New(awsSession)
@@ -58,12 +62,16 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		if err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
+				Body:       string("Error getting log by ID"),
+				Headers:    map[string]string{"content-Type": "application/json"},
 			}, err
 		}
-		stringBody, _ := json.Marshal(res)
+		body, _ := json.Marshal(res)
+		stringBody := string(body)
 		return events.APIGatewayProxyResponse{
-			Body:       string(stringBody),
+			Body:       stringBody,
 			StatusCode: 200,
+			Headers:    map[string]string{"content-Type": "application/json"},
 		}, nil
 	}
 
@@ -72,13 +80,17 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
+			Body:       string("Error getting logs"),
+			Headers:    map[string]string{"content-Type": "application/json"},
 		}, err
 	}
 
-	stringBody, _ := json.Marshal(res)
+	body, _ := json.Marshal(res)
+	stringBody := string(body)
 	return events.APIGatewayProxyResponse{
 		Body:       string(stringBody),
 		StatusCode: 200,
+		Headers:    map[string]string{"content-Type": "application/json"},
 	}, nil
 }
 
@@ -119,7 +131,6 @@ func FetchLogByID(id string, req events.APIGatewayProxyRequest, tableName string
 func FetchLogs(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]Log, error) {
 	//get all logs
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
-	logItem := new(Log)
 	item := new([]Log)
 
 	input := &dynamodb.ScanInput{
@@ -143,6 +154,7 @@ func FetchLogs(req events.APIGatewayProxyRequest, tableName string, dynaClient d
 		}
 
 		for _, i := range result.Items {
+			logItem := new(Log)
 			err := dynamodbattribute.UnmarshalMap(i, logItem)
 			if err != nil {
 				if logErr := sendLogs(req, 3, 1, "log", dynaClient, err); logErr != nil {
@@ -172,16 +184,14 @@ func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resou
 	LOGS_TABLE := os.Getenv("LOGS_TABLE")
 	//create log struct
 	log := Log{}
-	data := make(map[string]interface{})
-	data["Body"] = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
-	data["Query Parameters"] = req.QueryStringParameters
-	data["Error"] = err.Error()
+	log.Body = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
+	log.QueryParameters = req.QueryStringParameters
+	log.Error = err
 	log.Log_ID = uuid.NewString()
 	log.Severity = severity
 	log.User_ID = req.RequestContext.Identity.User
 	log.Action_Type = action
 	log.Resource_Type = resource
-	log.Data = data
 	log.Timestamp = time.Now().UTC()
 
 	av, err := dynamodbattribute.MarshalMap(log)

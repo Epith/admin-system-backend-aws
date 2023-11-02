@@ -62,6 +62,71 @@ resource "aws_dynamodb_table" "points_table" {
     }
 }
 
+resource "aws_dynamodb_table" "makers_table" {
+  name           = "requests"
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "req_id"
+  range_key      = "checker_role"
+
+  attribute {
+    name = "req_id"
+    type = "S"
+  }
+
+  attribute {
+    name = "checker_role"
+    type = "S"
+  }
+
+  attribute {
+    name = "maker_id"
+    type = "S"
+  }
+
+  attribute {
+    name = "checker_id"
+    type = "S"
+  }
+
+  attribute {
+    name = "request_status"
+    type = "S"
+  }
+
+  attribute {
+    name = "resource_type"
+    type = "S"
+  }
+
+  attribute {
+    name = "request_data"
+    type = "B"
+  }
+
+  # Global Secondary Index for maker_id as PK and request_status as SK
+  global_secondary_index {
+    name = "maker_id-request_status-index"
+    hash_key = "maker_id"
+    range_key = "request_status"
+
+    projection_type = "ALL"
+  }
+
+  # Global Secondary Index for checker_role as PK and request_status as SK
+  global_secondary_index {
+    name = "checker_role-request_status-index"
+    hash_key = "checker_role"
+    range_key = "request_status"
+
+    projection_type = "ALL"
+  }
+
+  tags = {
+    Name = "dynamodb-makers"
+  }
+  
+}
+
 resource "aws_dynamodb_table" "roles_table" {
     name = "roles"
     billing_mode = "PAY_PER_REQUEST"
@@ -129,6 +194,7 @@ resource "aws_iam_policy" "dynamodb_access_policy" {
         Resource = [
             aws_dynamodb_table.users_table.arn,
             aws_dynamodb_table.points_table.arn,
+            aws_dynamodb_table.makers_table.arn,
             aws_dynamodb_table.roles_table.arn,
             aws_dynamodb_table.logs_table.arn,
         ],

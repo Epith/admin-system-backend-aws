@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -19,10 +18,9 @@ import (
 	"github.com/google/uuid"
 )
 
-type UserPoint struct {
-	User_ID   string `json:"user_id"`
-	Points_ID string `json:"points_id"`
-	Points    int    `json:"points"`
+type Role struct {
+	Role   string              `json:"role"`
+	Access map[string][]string `json:"access"`
 }
 
 type Log struct {
@@ -38,15 +36,18 @@ type Log struct {
 }
 
 var (
+	ErrorInvalidRole             = "invalid Role"
+	ErrorCouldNotDeleteItem      = "could not delete item"
+	ErrorRoleDoesNotExist        = "role does not exist"
+	ErrorFailedToFetchRecordID   = "failed to fetch record by role"
 	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
-	ErrorFailedToFetchRecord     = "failed to fetch record"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	//get variables
-	user_id := request.QueryStringParameters["id"]
+	//getting variables
+	role := request.QueryStringParameters["role"]
 	region := os.Getenv("AWS_REGION")
-	POINTS_TABLE := os.Getenv("POINTS_TABLE")
+	ROLES_TABLE := os.Getenv("ROLES_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -61,113 +62,100 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 	dynaClient := dynamodb.New(awsSession)
 
-	//check if user id is specified, if yes call get user point from dynamo func
-	if len(user_id) > 0 {
-		res, err := FetchUserPoint(user_id, request, POINTS_TABLE, dynaClient)
-		if err != nil {
+	//check if role is supplied, if yes call delete role dynamo func
+	if len(role) > 0 {
+		res := DeleteRole(role, request, ROLES_TABLE, dynaClient)
+		if res != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
-				Body:       string("Error getting point by id"),
+				Body:       string("Error deleting Role"),
 				Headers:    map[string]string{"content-Type": "application/json"},
-			}, err
+			}, res
 		}
-		stringBody, _ := json.Marshal(res)
 		return events.APIGatewayProxyResponse{
-			Body:       string(stringBody),
+			Body:       "Record successfully deleted",
 			StatusCode: 200,
 			Headers:    map[string]string{"content-Type": "application/json"},
 		}, nil
 	}
 
-	//check if user id is specified, if no call get all user point from dynamo func
-	res, err := FetchUsersPoint(request, POINTS_TABLE, dynaClient)
-	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: 404,
-			Body:       string("Error getting points"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+	if logErr := sendLogs(request, 2, 4, "role", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
 	}
-	body, _ := json.Marshal(res)
-	stringBody := string(body)
+
 	return events.APIGatewayProxyResponse{
-		Body:       string(stringBody),
-		StatusCode: 200,
+		Body:       "Role ID missing",
+		StatusCode: 404,
 		Headers:    map[string]string{"content-Type": "application/json"},
-	}, nil
+	}, errors.New(ErrorInvalidRole)
 }
 
-func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]UserPoint, error) {
-	//getting single single user point
-	input := &dynamodb.QueryInput{
-		TableName: aws.String(tableName),
-		KeyConditions: map[string]*dynamodb.Condition{
-			"user_id": {
-				ComparisonOperator: aws.String("EQ"),
-				AttributeValueList: []*dynamodb.AttributeValue{
-					{
-						S: aws.String(user_id),
-					},
-				},
-			},
-		},
-	}
-
-	result, err := dynaClient.Query(input)
-	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
+func DeleteRole(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) error {
+	//checking if role exist
+	currentRole, _ := FetchRoleByID(id, req, tableName, dynaClient)
+	if currentRole != nil && len(currentRole.Role) == 0 {
+		err := errors.New(ErrorRoleDoesNotExist)
+		if logErr := sendLogs(req, 2, 3, "role", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
-		return nil, errors.New(ErrorFailedToFetchRecord)
+		return err
 	}
 
-	item := new([]UserPoint)
-	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
+	//attempt to delete role in dynamo
+	input := &dynamodb.DeleteItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"role": {
+				S: aws.String(id),
+			},
+		},
+		TableName: aws.String(tableName),
+	}
+	_, err := dynaClient.DeleteItem(input)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
+		if logErr := sendLogs(req, 3, 4, "role", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return errors.New(ErrorCouldNotDeleteItem)
+	}
+
+	if logErr := sendLogs(req, 1, 4, "role", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
+	}
+
+	return nil
+}
+
+func FetchRoleByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*Role, error) {
+	//get single role from dynamo
+	input := &dynamodb.GetItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"role": {
+				S: aws.String(id),
+			},
+		},
+		TableName: aws.String(tableName),
+	}
+
+	result, err := dynaClient.GetItem(input)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "role", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToFetchRecordID)
+	}
+
+	item := new(Role)
+	err = dynamodbattribute.UnmarshalMap(result.Item, item)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "role", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
 
-	if logErr := sendLogs(req, 1, 1, "point", dynaClient, err); logErr != nil {
+	if logErr := sendLogs(req, 1, 1, "role", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
-
-	return item, nil
-}
-
-func FetchUsersPoint(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]UserPoint, error) {
-	//getting all user points
-	input := &dynamodb.ScanInput{
-		TableName: aws.String(tableName),
-	}
-
-	result, err := dynaClient.Scan(input)
-	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorFailedToFetchRecord)
-	}
-
-	item := new([]UserPoint)
-	for _, i := range result.Items {
-		userpoint := new(UserPoint)
-		err := dynamodbattribute.UnmarshalMap(i, userpoint)
-		if err != nil {
-			if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
-				log.Println("Logging err :", logErr)
-			}
-			return nil, err
-		}
-		*item = append(*item, *userpoint)
-	}
-
-	if logErr := sendLogs(req, 1, 1, "point", dynaClient, err); logErr != nil {
-		log.Println("Logging err :", logErr)
-	}
-
 	return item, nil
 }
 

@@ -25,26 +25,40 @@ type UserPoint struct {
 	Points    int    `json:"points"`
 }
 
+type User struct {
+	Email     string `json:"email"`
+	User_ID   string `json:"user_id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Role      string `json:"role"`
+}
+
 type Log struct {
-	Log_ID        string                 `json:"log_id"`
-	Severity      int                    `json:"severity"`
-	User_ID       string                 `json:"user_id"`
-	Action_Type   int                    `json:"action_type"`
-	Resource_Type string                 `json:"resource_type"`
-	Data          map[string]interface{} `json:"data"`
-	Timestamp     time.Time              `json:"timestamp"`
+	Log_ID          string      `json:"log_id"`
+	Severity        int         `json:"severity"`
+	User_ID         string      `json:"user_id"`
+	Action_Type     int         `json:"action_type"`
+	Resource_Type   string      `json:"resource_type"`
+	Body            interface{} `json:"body"`
+	QueryParameters interface{} `json:"query_parameters"`
+	Error           interface{} `json:"error"`
+	Timestamp       time.Time   `json:"timestamp"`
 }
 
 var (
-	ErrorInvalidUserData       = "invalid user data"
-	ErrorCouldNotMarshalItem   = "could not marshal item"
-	ErrorCouldNotDynamoPutItem = "could not dynamo put item"
+	ErrorInvalidUserData         = "invalid user data"
+	ErrorCouldNotMarshalItem     = "could not marshal item"
+	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
+	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
+	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
+	ErrorUserDoesNotExist        = "user does not exist"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//getting variables
 	region := os.Getenv("AWS_REGION")
 	POINTS_TABLE := os.Getenv("POINTS_TABLE")
+	USER_TABLE := os.Getenv("USER_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -53,26 +67,31 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
+			Body:       string("Error setting up aws session"),
+			Headers:    map[string]string{"content-Type": "application/json"},
 		}, err
 	}
 	dynaClient := dynamodb.New(awsSession)
 
 	//calling create point to dynamo func
-	res, err := CreateUserPoint(request, POINTS_TABLE, dynaClient)
+	res, err := CreateUserPoint(request, POINTS_TABLE, USER_TABLE, dynaClient)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
+			Body:       string("Error creating point account"),
+			Headers:    map[string]string{"content-Type": "application/json"},
 		}, err
 	}
-	stringBody, _ := json.Marshal(res)
-
+	body, _ := json.Marshal(res)
+	stringBody := string(body)
 	return events.APIGatewayProxyResponse{
-		Body:       string(stringBody),
+		Body:       stringBody,
 		StatusCode: 200,
+		Headers:    map[string]string{"content-Type": "application/json"},
 	}, err
 }
 
-func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
+func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTable string, dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
 	var userpoint UserPoint
 
 	//marshall body to point struct
@@ -92,6 +111,15 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 		return nil, err
 	}
 
+	currentUser, _ := FetchUserByID(userpoint.User_ID, req, userTable, dynaClient)
+	if currentUser != nil && len(currentUser.User_ID) == 0 {
+		err := errors.New(ErrorUserDoesNotExist)
+		if logErr := sendLogs(req, 2, 3, "role", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, err
+	}
+
 	userpoint.Points_ID = uuid.NewString()
 	userpoint.Points = 0
 
@@ -99,7 +127,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 	av, err := dynamodbattribute.MarshalMap(userpoint)
 
 	if err != nil {
-		if logErr := sendLogs(req, 3, 2, "point", dynaClient, err); logErr != nil {
+		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorCouldNotMarshalItem)
@@ -126,6 +154,40 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 	return &userpoint, nil
 }
 
+func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
+	//get single user from dynamo
+	input := &dynamodb.GetItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"user_id": {
+				S: aws.String(id),
+			},
+		},
+		TableName: aws.String(tableName),
+	}
+
+	result, err := dynaClient.GetItem(input)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToFetchRecordID)
+	}
+
+	item := new(User)
+	err = dynamodbattribute.UnmarshalMap(result.Item, item)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToUnmarshalRecord)
+	}
+
+	if logErr := sendLogs(req, 1, 1, "user", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
+	}
+	return item, nil
+}
+
 func main() {
 	lambda.Start(handler)
 }
@@ -134,16 +196,14 @@ func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resou
 	LOGS_TABLE := os.Getenv("LOGS_TABLE")
 	//create log struct
 	log := Log{}
-	data := make(map[string]interface{})
-	data["Body"] = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
-	data["Query Parameters"] = req.QueryStringParameters
-	data["Error"] = err.Error()
+	log.Body = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
+	log.QueryParameters = req.QueryStringParameters
+	log.Error = err
 	log.Log_ID = uuid.NewString()
 	log.Severity = severity
 	log.User_ID = req.RequestContext.Identity.User
 	log.Action_Type = action
 	log.Resource_Type = resource
-	log.Data = data
 	log.Timestamp = time.Now().UTC()
 
 	av, err := dynamodbattribute.MarshalMap(log)

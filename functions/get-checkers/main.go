@@ -3,11 +3,12 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"os"
 	"regexp"
 	"strings"
 	"time"
+
+	"ascenda/functions/utility"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -18,12 +19,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/google/uuid"
 )
-
-type UserPoint struct {
-	User_ID   string `json:"user_id"`
-	Points_ID string `json:"points_id"`
-	Points    int    `json:"points"`
-}
 
 type Log struct {
 	Log_ID          string      `json:"log_id"`
@@ -38,15 +33,15 @@ type Log struct {
 }
 
 var (
-	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
-	ErrorFailedToFetchRecord     = "failed to fetch record"
+	ErrorCouldNotMarshalItem     = "could not marshal item"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//get variables
-	user_id := request.QueryStringParameters["id"]
+	status := request.QueryStringParameters["status"]
+	role := request.QueryStringParameters["role"]
 	region := os.Getenv("AWS_REGION")
-	POINTS_TABLE := os.Getenv("POINTS_TABLE")
+	MAKER_TABLE := os.Getenv("MAKER_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -61,13 +56,13 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 	dynaClient := dynamodb.New(awsSession)
 
-	//check if user id is specified, if yes call get user point from dynamo func
-	if len(user_id) > 0 {
-		res, err := FetchUserPoint(user_id, request, POINTS_TABLE, dynaClient)
+	// filter by client role and maker request status
+	if len(status) > 0 {
+		res, err := FetchMakerRequestsByCheckerRoleAndStatus(role, status, MAKER_TABLE, dynaClient)
 		if err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
-				Body:       string("Error getting point by id"),
+				Body:       string(err.Error()),
 				Headers:    map[string]string{"content-Type": "application/json"},
 			}, err
 		}
@@ -78,97 +73,40 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			Headers:    map[string]string{"content-Type": "application/json"},
 		}, nil
 	}
-
-	//check if user id is specified, if no call get all user point from dynamo func
-	res, err := FetchUsersPoint(request, POINTS_TABLE, dynaClient)
-	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: 404,
-			Body:       string("Error getting points"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
-	}
-	body, _ := json.Marshal(res)
-	stringBody := string(body)
 	return events.APIGatewayProxyResponse{
-		Body:       string(stringBody),
-		StatusCode: 200,
+		StatusCode: 400,
+		Body:       string("missing query parameter"),
 		Headers:    map[string]string{"content-Type": "application/json"},
-	}, nil
+	}, err
 }
 
-func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]UserPoint, error) {
-	//getting single single user point
-	input := &dynamodb.QueryInput{
-		TableName: aws.String(tableName),
-		KeyConditions: map[string]*dynamodb.Condition{
-			"user_id": {
-				ComparisonOperator: aws.String("EQ"),
-				AttributeValueList: []*dynamodb.AttributeValue{
-					{
-						S: aws.String(user_id),
-					},
-				},
-			},
+func FetchMakerRequestsByCheckerRoleAndStatus(checker_role, requestStatus, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]utility.MakerRequest, error) {
+	queryInput := &dynamodb.QueryInput{
+		TableName:              aws.String(tableName),
+		IndexName:              aws.String("checker_role-request_status-index"),
+		KeyConditionExpression: aws.String("#checker_role = :checker_role AND #request_status = :request_status"),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":checker_role":   {S: aws.String(checker_role)},
+			":request_status": {S: aws.String(requestStatus)},
+		},
+		ExpressionAttributeNames: map[string]*string{
+			"#checker_role":   aws.String("checker_role"),
+			"#request_status": aws.String("request_status"),
 		},
 	}
 
-	result, err := dynaClient.Query(input)
+	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorFailedToFetchRecord)
+		return nil, err
 	}
 
-	item := new([]UserPoint)
-	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
+	makerRequests := new([]utility.MakerRequest)
+	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
+		return nil, errors.New(ErrorCouldNotMarshalItem)
 	}
 
-	if logErr := sendLogs(req, 1, 1, "point", dynaClient, err); logErr != nil {
-		log.Println("Logging err :", logErr)
-	}
-
-	return item, nil
-}
-
-func FetchUsersPoint(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]UserPoint, error) {
-	//getting all user points
-	input := &dynamodb.ScanInput{
-		TableName: aws.String(tableName),
-	}
-
-	result, err := dynaClient.Scan(input)
-	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorFailedToFetchRecord)
-	}
-
-	item := new([]UserPoint)
-	for _, i := range result.Items {
-		userpoint := new(UserPoint)
-		err := dynamodbattribute.UnmarshalMap(i, userpoint)
-		if err != nil {
-			if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
-				log.Println("Logging err :", logErr)
-			}
-			return nil, err
-		}
-		*item = append(*item, *userpoint)
-	}
-
-	if logErr := sendLogs(req, 1, 1, "point", dynaClient, err); logErr != nil {
-		log.Println("Logging err :", logErr)
-	}
-
-	return item, nil
+	return makerRequests, nil
 }
 
 func main() {

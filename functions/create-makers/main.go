@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ascenda/functions/utility"
 	"encoding/json"
 	"errors"
 	"log"
@@ -32,32 +33,6 @@ var (
 	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
 )
 
-type MakerRequest struct {
-	RequestUUID   string          `json:"req_id"`
-	CheckerRole   string          `json:"checker_role"`
-	MakerUUID     string          `json:"maker_id"`
-	CheckerUUID   string          `json:"checker_id"`
-	RequestStatus string          `json:"request_status"`
-	ResourceType  string          `json:"resource_type"`
-	RequestData   json.RawMessage `json:"request_data"`
-}
-
-type ReturnMakerRequest struct {
-	RequestUUID   string          `json:"req_id"`
-	CheckerRole   []string        `json:"checker_role"`
-	MakerUUID     string          `json:"maker_id"`
-	CheckerUUID   string          `json:"checker_id"`
-	RequestStatus string          `json:"request_status"`
-	ResourceType  string          `json:"resource_type"`
-	RequestData   json.RawMessage `json:"request_data"`
-}
-
-type NewMakerRequest struct {
-	CheckerRole  []string        `json:"checker_roles"`
-	MakerUUID    string          `json:"maker_id"`
-	ResourceType string          `json:"resource_type"`
-	RequestData  json.RawMessage `json:"request_data"`
-}
 type UserPoint struct {
 	User_ID   string `json:"user_id"`
 	Points_ID string `json:"points_id"`
@@ -90,7 +65,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	USER_TABLE := os.Getenv("USER_TABLE")
 	POINTS_TABLE := os.Getenv("POINTS_TABLE")
 	MAKER_TABLE := os.Getenv("MAKER_TABLE")
-	
+
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)})
@@ -124,38 +99,38 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 }
 
 func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userTableName, pointsTableName string, dynaClient dynamodbiface.DynamoDBAPI) (
-	[]ReturnMakerRequest, error) {
-	var postMakerRequest NewMakerRequest
+	[]utility.ReturnMakerRequest, error) {
+	var postMakerRequest utility.NewMakerRequest
 
 	//marshall body to maker request struct
 	if err := json.Unmarshal([]byte(req.Body), &postMakerRequest); err != nil {
 		return nil, errors.New(ErrorInvalidMakerData)
 	}
-	
+
 	if postMakerRequest.MakerUUID == "" {
 		return nil, errors.New(ErrorInvalidMakerData)
 	}
-	
+
 	_, err := FetchUserByID(postMakerRequest.MakerUUID, req, userTableName, dynaClient)
 	if err != nil {
 		return nil, errors.New(ErrorUserDoesNotExist)
 	}
-	
+
 	if postMakerRequest.ResourceType == "user" {
 		//marshall body to point struct
 		var userData User
 		if err := json.Unmarshal(postMakerRequest.RequestData, &userData); err != nil {
 			return nil, errors.New(ErrorCouldNotMarshalItem)
 		}
-		
+
 		// check if user exist
 		_, err = FetchUserByID(userData.User_ID, req, userTableName, dynaClient)
 		if err != nil {
 			return nil, errors.New(userData.User_ID)
 		}
-		makerRequests := DeconstructPostMakerRequest(postMakerRequest)
+		makerRequests := utility.DeconstructPostMakerRequest(postMakerRequest)
 		roleCount := len(postMakerRequest.CheckerRole)
-		return BatchWriteToDynamoDB(roleCount, makerRequests, makerTableName, dynaClient)
+		return utility.BatchWriteToDynamoDB(roleCount, makerRequests, makerTableName, dynaClient)
 
 	} else if postMakerRequest.ResourceType == "points" {
 
@@ -174,9 +149,9 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 			return nil, errors.New(ErrorInvalidPointsID)
 		}
 
-		makerRequests := DeconstructPostMakerRequest(postMakerRequest)
+		makerRequests := utility.DeconstructPostMakerRequest(postMakerRequest)
 		roleCount := len(postMakerRequest.CheckerRole)
-		return BatchWriteToDynamoDB(roleCount, makerRequests, makerTableName, dynaClient)
+		return utility.BatchWriteToDynamoDB(roleCount, makerRequests, makerTableName, dynaClient)
 	}
 
 	return nil, errors.New(ErrorInvalidResourceType)
@@ -192,9 +167,9 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 		},
 		TableName: aws.String(tableName),
 	}
-	
+
 	result, err := dynaClient.GetItem(input)
-	
+
 	if err != nil {
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
@@ -209,7 +184,7 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 		}
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
-	
+
 	if logErr := sendLogs(req, 1, 1, "user", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
@@ -305,84 +280,4 @@ func RemoveNewlineAndUnnecessaryWhitespace(body string) string {
 	body = strings.TrimSpace(body)
 
 	return body
-}
-
-func BatchWriteToDynamoDB(roleCount int, makerRequests []MakerRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) ([]ReturnMakerRequest, error) {
-	writeRequests := make([]*dynamodb.WriteRequest, roleCount)
-	
-	for i, request := range makerRequests {
-		item, err := dynamodbattribute.MarshalMap(request)
-		if err != nil {
-			return nil, err
-		}
-		
-		writeRequest := &dynamodb.WriteRequest{
-			PutRequest: &dynamodb.PutRequest{
-				Item: item,
-			},
-		}
-		
-		writeRequests[i] = writeRequest
-	}
-	
-	input := &dynamodb.BatchWriteItemInput{
-		RequestItems: map[string][]*dynamodb.WriteRequest{
-			tableName: writeRequests,
-		},
-	}
-	_, err := dynaClient.BatchWriteItem(input)
-	if err != nil {
-		return nil, errors.New(ErrorCouldNotDynamoPutItem)
-	}
-	return FormatMakerRequest(makerRequests), nil
-}
-
-func FormatMakerRequest(makerRequests []MakerRequest) []ReturnMakerRequest {
-	makerRequestsMap := make(map[string]ReturnMakerRequest)
-	for _, request := range makerRequests {
-		resRequest := makerRequestsMap[request.RequestUUID]
-		if resRequest.RequestUUID == "" {
-			makerRequestsMap[request.RequestUUID] = ReturnMakerRequest{
-				RequestUUID:   request.RequestUUID,
-				CheckerRole:   []string{request.CheckerRole},
-				MakerUUID:     request.MakerUUID,
-				CheckerUUID:   request.CheckerUUID,
-				RequestStatus: request.RequestStatus,
-				ResourceType:  request.ResourceType,
-				RequestData:   request.RequestData,
-			}
-		} else {
-			resRequest.CheckerRole = append(resRequest.CheckerRole, request.CheckerRole)
-			makerRequestsMap[request.RequestUUID] = resRequest
-		}
-	}
-	
-	retRequests := make([]ReturnMakerRequest, 0, len(makerRequestsMap))
-	for _, value := range makerRequestsMap {
-		retRequests = append(retRequests, value)
-	}
-
-	return retRequests
-}
-
-func DeconstructPostMakerRequest(postMakerRequest NewMakerRequest) []MakerRequest {
-	roleCount := len(postMakerRequest.CheckerRole)
-	makerRequests := make([]MakerRequest, roleCount)
-	reqId := uuid.NewString()
-	
-	for i := 0; i < roleCount; i++ {
-		var makerRequest MakerRequest
-		
-		makerRequest.RequestUUID = reqId
-		makerRequest.RequestStatus = "pending"
-		makerRequest.CheckerUUID = ""
-		makerRequest.CheckerRole = postMakerRequest.CheckerRole[i]
-		makerRequest.MakerUUID = postMakerRequest.MakerUUID
-		makerRequest.ResourceType = postMakerRequest.ResourceType
-		makerRequest.RequestData = postMakerRequest.RequestData
-		
-		makerRequests[i] = makerRequest
-	}
-	
-	return makerRequests
 }

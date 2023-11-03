@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -63,13 +64,16 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	//check if role is supplied, if yes call delete role dynamo func
 	if len(role) > 0 {
-		res := DeleteRole(role, request, ROLES_TABLE, dynaClient)
-		if res != nil {
+		err := DeleteRole(role, request, ROLES_TABLE, dynaClient)
+		if err != nil {
+			fmt.Print("1")
+			fmt.Println(err)
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string("Error deleting Role"),
-			}, res
+			}, err
 		}
+		fmt.Println("2")
 		return events.APIGatewayProxyResponse{
 			Body:       "Record successfully deleted",
 			StatusCode: 200,
@@ -104,11 +108,12 @@ func DeleteRole(id string, req events.APIGatewayProxyRequest, tableName string, 
 		}
 		return errors.New(ErrorFailedToFetchRecordID)
 	}
-
+	fmt.Println("before result.item == nil")
 	if result.Item == nil {
+		fmt.Println("comes here")
 		return errors.New(ErrorRoleDoesNotExist)
 	}
-
+	fmt.Println("after result.item == nil")
 	//attempt to delete role in dynamo
 	input := &dynamodb.DeleteItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
@@ -131,40 +136,6 @@ func DeleteRole(id string, req events.APIGatewayProxyRequest, tableName string, 
 	}
 
 	return nil
-}
-
-func FetchRoleByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*Role, error) {
-	//get single role from dynamo
-	input := &dynamodb.GetItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			"role": {
-				S: aws.String(id),
-			},
-		},
-		TableName: aws.String(tableName),
-	}
-
-	result, err := dynaClient.GetItem(input)
-	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "role", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorFailedToFetchRecordID)
-	}
-
-	item := new(Role)
-	err = dynamodbattribute.UnmarshalMap(result.Item, item)
-	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "role", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
-	}
-
-	if logErr := sendLogs(req, 1, 1, "role", dynaClient, err); logErr != nil {
-		log.Println("Logging err :", logErr)
-	}
-	return item, nil
 }
 
 func main() {

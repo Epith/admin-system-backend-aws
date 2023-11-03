@@ -110,7 +110,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
-			Body:       string("Error creating maker request"),
+			Body:       string(err.Error()),
 		}, nil
 	}
 
@@ -343,8 +343,10 @@ func BatchWriteToDynamoDB(roleCount int, makerRequests []MakerRequest, tableName
 	_, err := dynaClient.BatchWriteItem(input)
 	log.Println(45)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotDynamoPutItem)
+		// return nil, errors.New(ErrorCouldNotDynamoPutItem)
+		return nil, err
 	}
+	log.Println(46)
 	return FormatMakerRequest(makerRequests), nil
 }
 

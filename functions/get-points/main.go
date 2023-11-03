@@ -56,7 +56,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-		}, err
+		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
 
@@ -67,7 +67,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string("Error getting point by id"),
-			}, err
+			}, nil
 		}
 		stringBody, _ := json.Marshal(res)
 		return events.APIGatewayProxyResponse{
@@ -83,7 +83,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error getting points"),
-		}, err
+		}, nil
 	}
 	body, _ := json.Marshal(res)
 	stringBody := string(body)

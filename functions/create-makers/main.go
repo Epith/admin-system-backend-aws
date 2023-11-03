@@ -90,12 +90,11 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	USER_TABLE := os.Getenv("USER_TABLE")
 	POINTS_TABLE := os.Getenv("POINTS_TABLE")
 	MAKER_TABLE := os.Getenv("MAKER_TABLE")
-	log.Println(11)
+	
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)})
 
-	log.Println(12)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
@@ -104,7 +103,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 	dynaClient := dynamodb.New(awsSession)
 
-	log.Println(13)
 	//calling create maker request to dynamo func
 	res, err := CreateMakerRequest(request, MAKER_TABLE, USER_TABLE, POINTS_TABLE, dynaClient)
 	if err != nil {
@@ -114,13 +112,10 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, nil
 	}
 
-	log.Println(14)
 	body, _ := json.Marshal(res)
 
-	log.Println(15)
 	stringBody := string(body)
 
-	log.Println(16)
 	return events.APIGatewayProxyResponse{
 		Body:       stringBody,
 		StatusCode: 200,
@@ -132,37 +127,33 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 	[]ReturnMakerRequest, error) {
 	var postMakerRequest NewMakerRequest
 
-	log.Println(21)
 	//marshall body to maker request struct
 	if err := json.Unmarshal([]byte(req.Body), &postMakerRequest); err != nil {
 		return nil, errors.New(ErrorInvalidMakerData)
 	}
-	log.Println(22)
+	
 	if postMakerRequest.MakerUUID == "" {
 		return nil, errors.New(ErrorInvalidMakerData)
 	}
-	log.Println(23)
+	
 	_, err := FetchUserByID(postMakerRequest.MakerUUID, req, userTableName, dynaClient)
 	if err != nil {
 		return nil, errors.New(ErrorUserDoesNotExist)
 	}
-	log.Println(24)
+	
 	if postMakerRequest.ResourceType == "user" {
-		log.Println(25)
 		//marshall body to point struct
 		var userData User
 		if err := json.Unmarshal(postMakerRequest.RequestData, &userData); err != nil {
 			return nil, errors.New(ErrorCouldNotMarshalItem)
 		}
-		log.Println(26)
+		
 		// check if user exist
 		_, err = FetchUserByID(userData.User_ID, req, userTableName, dynaClient)
 		if err != nil {
 			return nil, errors.New(userData.User_ID)
 		}
-		log.Println(27)
 		makerRequests := DeconstructPostMakerRequest(postMakerRequest)
-		log.Println(28)
 		roleCount := len(postMakerRequest.CheckerRole)
 		return BatchWriteToDynamoDB(roleCount, makerRequests, makerTableName, dynaClient)
 
@@ -201,16 +192,15 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 		},
 		TableName: aws.String(tableName),
 	}
-	log.Println(31)
+	
 	result, err := dynaClient.GetItem(input)
-	log.Println(32)
+	
 	if err != nil {
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
-	log.Println(33)
 	item := new(User)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
@@ -219,7 +209,7 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 		}
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
-	log.Println(34)
+	
 	if logErr := sendLogs(req, 1, 1, "user", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
@@ -319,45 +309,39 @@ func RemoveNewlineAndUnnecessaryWhitespace(body string) string {
 
 func BatchWriteToDynamoDB(roleCount int, makerRequests []MakerRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) ([]ReturnMakerRequest, error) {
 	writeRequests := make([]*dynamodb.WriteRequest, roleCount)
-	log.Println(41)
+	
 	for i, request := range makerRequests {
 		item, err := dynamodbattribute.MarshalMap(request)
 		if err != nil {
 			return nil, err
 		}
-		log.Println(42)
+		
 		writeRequest := &dynamodb.WriteRequest{
 			PutRequest: &dynamodb.PutRequest{
 				Item: item,
 			},
 		}
-		log.Println(43)
+		
 		writeRequests[i] = writeRequest
 	}
-	log.Println(44)
+	
 	input := &dynamodb.BatchWriteItemInput{
 		RequestItems: map[string][]*dynamodb.WriteRequest{
 			tableName: writeRequests,
 		},
 	}
 	_, err := dynaClient.BatchWriteItem(input)
-	log.Println(45)
 	if err != nil {
-		// return nil, errors.New(ErrorCouldNotDynamoPutItem)
-		return nil, err
+		return nil, errors.New(ErrorCouldNotDynamoPutItem)
 	}
-	log.Println(46)
 	return FormatMakerRequest(makerRequests), nil
 }
 
 func FormatMakerRequest(makerRequests []MakerRequest) []ReturnMakerRequest {
 	makerRequestsMap := make(map[string]ReturnMakerRequest)
 	for _, request := range makerRequests {
-		log.Println(51)
 		resRequest := makerRequestsMap[request.RequestUUID]
-		log.Println(52)
 		if resRequest.RequestUUID == "" {
-			log.Println(53)
 			makerRequestsMap[request.RequestUUID] = ReturnMakerRequest{
 				RequestUUID:   request.RequestUUID,
 				CheckerRole:   []string{request.CheckerRole},
@@ -368,16 +352,13 @@ func FormatMakerRequest(makerRequests []MakerRequest) []ReturnMakerRequest {
 				RequestData:   request.RequestData,
 			}
 		} else {
-			log.Println(54)
 			resRequest.CheckerRole = append(resRequest.CheckerRole, request.CheckerRole)
 			makerRequestsMap[request.RequestUUID] = resRequest
 		}
 	}
-	log.Println(55)
+	
 	retRequests := make([]ReturnMakerRequest, 0, len(makerRequestsMap))
-	log.Println(56)
 	for _, value := range makerRequestsMap {
-		log.Println(57)
 		retRequests = append(retRequests, value)
 	}
 
@@ -388,10 +369,10 @@ func DeconstructPostMakerRequest(postMakerRequest NewMakerRequest) []MakerReques
 	roleCount := len(postMakerRequest.CheckerRole)
 	makerRequests := make([]MakerRequest, roleCount)
 	reqId := uuid.NewString()
-	log.Println(61)
+	
 	for i := 0; i < roleCount; i++ {
 		var makerRequest MakerRequest
-		log.Println(62)
+		
 		makerRequest.RequestUUID = reqId
 		makerRequest.RequestStatus = "pending"
 		makerRequest.CheckerUUID = ""
@@ -399,9 +380,9 @@ func DeconstructPostMakerRequest(postMakerRequest NewMakerRequest) []MakerReques
 		makerRequest.MakerUUID = postMakerRequest.MakerUUID
 		makerRequest.ResourceType = postMakerRequest.ResourceType
 		makerRequest.RequestData = postMakerRequest.RequestData
-		log.Println(63)
+		
 		makerRequests[i] = makerRequest
 	}
-	log.Println(64)
+	
 	return makerRequests
 }

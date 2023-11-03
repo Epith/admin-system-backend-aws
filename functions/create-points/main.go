@@ -68,7 +68,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, err
 	}
 	dynaClient := dynamodb.New(awsSession)
@@ -80,13 +79,9 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error creating point account"),
-			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
-	if res == nil {
-		log.Println("the res is nil")
-	}
-	log.Println(res)
+
 	body, _ := json.Marshal(res)
 	stringBody := string(body)
 	return events.APIGatewayProxyResponse{
@@ -127,17 +122,14 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 
 	result, err := dynaClient.GetItem(input)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
+		if logErr := sendLogs(req, 3, 2, "point", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
 
 	if result.Item == nil {
-		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorFailedToFetchRecordID)
+		return nil, errors.New(ErrorUserDoesNotExist)
 	}
 
 	userpoint.Points_ID = uuid.NewString()
@@ -172,40 +164,6 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 	}
 
 	return &userpoint, nil
-}
-
-func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
-	//get single user from dynamo
-	input := &dynamodb.GetItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			"user_id": {
-				S: aws.String(id),
-			},
-		},
-		TableName: aws.String(tableName),
-	}
-
-	result, err := dynaClient.GetItem(input)
-	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorFailedToFetchRecordID)
-	}
-
-	item := new(User)
-	err = dynamodbattribute.UnmarshalMap(result.Item, item)
-	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
-	}
-
-	if logErr := sendLogs(req, 1, 1, "user", dynaClient, err); logErr != nil {
-		log.Println("Logging err :", logErr)
-	}
-	return item, nil
 }
 
 func main() {

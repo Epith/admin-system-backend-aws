@@ -60,7 +60,8 @@ type Log struct {
 var (
 	ErrorFailedToFetchRecord   = "failed to fetch record"
 	ErrorCouldNotMarshalItem   = "could not marshal item"
-	ErrorMakerDoesNotExist     = "request.maker_id does not exist"
+	ErrorCouldNotQueryDB       = "could not query db"
+	ErrorMakerReqDoesNotExist  = "maker request id does not exist"
 	ErrorCouldNotDynamoPutItem = "could not dynamo put item"
 )
 
@@ -116,6 +117,16 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			StatusCode: 200,
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
+	} else if len(makerId) > 0 && len(status) == 0{
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Missing status query param"),
+		}, nil
+	} else if len(makerId) == 0 && len(status) > 0{
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Missing maker_id query param"),
+		}, nil
 	}
 	// get all
 	res, err := FetchMakerRequests(MAKER_TABLE, request, dynaClient)
@@ -150,7 +161,7 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 	}
 
 	if len(result.Items) == 0 {
-		return nil, errors.New(ErrorMakerDoesNotExist)
+		return nil, errors.New(ErrorMakerReqDoesNotExist)
 	}
 
 	makerRequests := new([]MakerRequest)
@@ -195,7 +206,7 @@ func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName stri
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		return nil, err
+		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
 	makerRequests := new([]MakerRequest)

@@ -56,7 +56,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	dynaClient := dynamodb.New(awsSession)
 
 	// filter by client role and maker request status
-	if len(status) > 0 {
+	if len(role) > 0 && len(status) > 0 {
 		res, err := FetchMakerRequestsByCheckerRoleAndStatus(role, status, MAKER_TABLE, dynaClient)
 		if err != nil {
 			return events.APIGatewayProxyResponse{

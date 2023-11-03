@@ -58,10 +58,10 @@ type Log struct {
 }
 
 var (
-	ErrorFailedToFetchRecord     = "failed to fetch record"
-	ErrorCouldNotMarshalItem     = "could not marshal item"
-	ErrorMakerDoesNotExist       = "request.maker_id does not exist"
-	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
+	ErrorFailedToFetchRecord   = "failed to fetch record"
+	ErrorCouldNotMarshalItem   = "could not marshal item"
+	ErrorMakerDoesNotExist     = "request.maker_id does not exist"
+	ErrorCouldNotDynamoPutItem = "could not dynamo put item"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -78,7 +78,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-		}, err
+		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
 
@@ -89,7 +89,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string(err.Error()),
-			}, err
+			}, nil
 		}
 		stringBody, _ := json.Marshal(res)
 		return events.APIGatewayProxyResponse{
@@ -108,7 +108,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string(err.Error()),
-			}, err
+			}, nil
 		}
 		stringBody, _ := json.Marshal(res)
 		return events.APIGatewayProxyResponse{
@@ -123,7 +123,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string(err.Error()),
-		}, err
+		}, nil
 	}
 
 	body, _ := json.Marshal(res)
@@ -160,7 +160,7 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 	}
 
 	return FormatMakerRequest(*makerRequests), nil
-	
+
 }
 
 func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]ReturnMakerRequest, error) {
@@ -168,7 +168,7 @@ func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dyn
 		TableName: aws.String(tableName),
 		Limit:     aws.Int64(int64(3000)),
 	}
-	
+
 	result, err := dynaClient.Scan(input)
 	if err != nil {
 		return nil, errors.New(ErrorFailedToFetchRecord)

@@ -101,7 +101,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-		}, err
+		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
 
@@ -112,28 +112,27 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error creating maker request"),
-		}, err
+		}, nil
 	}
-	
+
 	fmt.Println(14)
 	body, _ := json.Marshal(res)
 
-	
 	fmt.Println(15)
 	stringBody := string(body)
-	
+
 	fmt.Println(16)
 	return events.APIGatewayProxyResponse{
 		Body:       stringBody,
 		StatusCode: 200,
 		Headers:    map[string]string{"Content-Type": "application/json"},
-	}, err
+	}, nil
 }
 
 func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userTableName, pointsTableName string, dynaClient dynamodbiface.DynamoDBAPI) (
 	[]ReturnMakerRequest, error) {
 	var postMakerRequest NewMakerRequest
-	
+
 	fmt.Println(21)
 	//marshall body to maker request struct
 	if err := json.Unmarshal([]byte(req.Body), &postMakerRequest); err != nil {

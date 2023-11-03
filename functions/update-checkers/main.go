@@ -87,10 +87,10 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-		}, err
+		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
-	
+
 	// unmarshal json body into DecisionBody
 	var decisionBody DecisionBody
 
@@ -98,14 +98,14 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 400,
 			Body:       string("Error in unmarshalling json body"),
-		}, err
+		}, nil
 	}
 	if decisionBody.RequestId == "" || decisionBody.CheckerId == "" ||
-			decisionBody.Decision == "" || decisionBody.CheckerRole == "" {
+		decisionBody.Decision == "" || decisionBody.CheckerRole == "" {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 400,
 			Body:       string("Error missing json fields"),
-		}, err
+		}, nil
 	}
 
 	//calling  to dynamo func
@@ -115,7 +115,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 400,
 			Body:       string(err.Error()),
-		}, err
+		}, nil
 	}
 	body, _ := json.Marshal(res)
 	stringBody := string(body)
@@ -123,11 +123,11 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		Body:       stringBody,
 		StatusCode: 200,
 		Headers:    map[string]string{"Content-Type": "application/json"},
-	}, err
+	}, nil
 }
 
-func MakerRequestDecision(reqId, checkerRole, checkerUUID, decision, makerTableName, userTableName, pointsTableName string, 
-		req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) (
+func MakerRequestDecision(reqId, checkerRole, checkerUUID, decision, makerTableName, userTableName, pointsTableName string,
+	req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) (
 	[]utility.ReturnMakerRequest,
 	error,
 ) {
@@ -161,8 +161,8 @@ func MakerRequestDecision(reqId, checkerRole, checkerUUID, decision, makerTableN
 			if err != nil {
 				return nil, err
 			}
-			
-		// if maker request to change points table
+
+			// if maker request to change points table
 		} else if resourceType == "points" {
 			var pointsData UserPoint
 			if err := json.Unmarshal(currentMakerRequest[0].RequestData, &pointsData); err != nil {
@@ -197,7 +197,7 @@ func MakerRequestDecision(reqId, checkerRole, checkerUUID, decision, makerTableN
 		request.CheckerUUID = checkerUUID
 		makerRequests[i] = request
 	}
-	
+
 	retMakerRequest, err := utility.BatchWriteToDynamoDB(len(makerRequests), makerRequests, makerTableName, dynaClient)
 	if err != nil {
 		return nil, err

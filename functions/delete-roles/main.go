@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -58,7 +57,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-			Headers:    map[string]string{"Content-Type": "text/plain"},
 		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
@@ -67,15 +65,11 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if len(role) > 0 {
 		err := DeleteRole(role, request, ROLES_TABLE, dynaClient)
 		if err != nil {
-			fmt.Print("1")
-			fmt.Println(err)
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string("Error deleting Role"),
-				Headers:    map[string]string{"Content-Type": "text/plain"},
 			}, nil
 		}
-		fmt.Println("2")
 		return events.APIGatewayProxyResponse{
 			Body:       "Record successfully deleted",
 			StatusCode: 200,
@@ -89,7 +83,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	return events.APIGatewayProxyResponse{
 		Body:       "Role ID missing",
 		StatusCode: 404,
-	}, errors.New(ErrorInvalidRole)
+	}, nil
 }
 
 func DeleteRole(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) error {
@@ -110,12 +104,11 @@ func DeleteRole(id string, req events.APIGatewayProxyRequest, tableName string, 
 		}
 		return errors.New(ErrorFailedToFetchRecordID)
 	}
-	fmt.Println("before result.item == nil")
+	
 	if result.Item == nil {
-		fmt.Println("comes here")
 		return errors.New(ErrorRoleDoesNotExist)
 	}
-	fmt.Println("after result.item == nil")
+
 	//attempt to delete role in dynamo
 	input := &dynamodb.DeleteItemInput{
 		Key: map[string]*dynamodb.AttributeValue{

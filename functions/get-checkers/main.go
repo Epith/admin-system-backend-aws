@@ -51,7 +51,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-		}, err
+		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
 
@@ -62,7 +62,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string(err.Error()),
-			}, err
+			}, nil
 		}
 		stringBody, _ := json.Marshal(res)
 		return events.APIGatewayProxyResponse{
@@ -74,7 +74,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	return events.APIGatewayProxyResponse{
 		StatusCode: 400,
 		Body:       string("missing query parameter"),
-	}, err
+	}, nil
 }
 
 func FetchMakerRequestsByCheckerRoleAndStatus(checker_role, requestStatus, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]utility.MakerRequest, error) {

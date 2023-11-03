@@ -355,7 +355,7 @@ func RemoveNewlineAndUnnecessaryWhitespace(body string) string {
 }
 
 func sendEmail(recipientEmail string) (error) {
-	senderEmail := "pesexoh964@glalen.com"
+	senderEmail := "ryan.peh.2021@scis.smu.edu.sg"
 
 	// Create an SES session
 	sess, err := session.NewSession(&aws.Config{

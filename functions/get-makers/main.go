@@ -33,9 +33,9 @@ type Log struct {
 }
 
 var (
-	ErrorFailedToFetchRecord     = "failed to fetch record"
-	ErrorCouldNotMarshalItem     = "could not marshal item"
-	ErrorMakerDoesNotExist       = "request.maker_id does not exist"
+	ErrorFailedToFetchRecord = "failed to fetch record"
+	ErrorCouldNotMarshalItem = "could not marshal item"
+	ErrorMakerDoesNotExist   = "request.maker_id does not exist"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -52,7 +52,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-			Headers:    map[string]string{"content-Type": "application/json"},
 		}, err
 	}
 	dynaClient := dynamodb.New(awsSession)
@@ -64,14 +63,13 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string(err.Error()),
-				Headers:    map[string]string{"content-Type": "application/json"},
 			}, err
 		}
 		stringBody, _ := json.Marshal(res)
 		return events.APIGatewayProxyResponse{
 			Body:       string(stringBody),
 			StatusCode: 200,
-			Headers:    map[string]string{"content-Type": "application/json"},
+			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
 
@@ -84,14 +82,13 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string(err.Error()),
-				Headers:    map[string]string{"content-Type": "application/json"},
 			}, err
 		}
 		stringBody, _ := json.Marshal(res)
 		return events.APIGatewayProxyResponse{
 			Body:       string(stringBody),
 			StatusCode: 200,
-			Headers:    map[string]string{"content-Type": "application/json"},
+			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
 	// get all
@@ -100,16 +97,15 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string(err.Error()),
-			Headers:    map[string]string{"content-Type": "application/json"},
 		}, err
 	}
-	
+
 	body, _ := json.Marshal(res)
 	stringBody := string(body)
 	return events.APIGatewayProxyResponse{
 		Body:       string(stringBody),
 		StatusCode: 200,
-		Headers:    map[string]string{"content-Type": "application/json"},
+		Headers:    map[string]string{"Content-Type": "application/json"},
 	}, nil
 }
 
@@ -138,7 +134,7 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 	}
 
 	return utility.FormatMakerRequest(*makerRequests), nil
-	
+
 }
 
 func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.ReturnMakerRequest, error) {

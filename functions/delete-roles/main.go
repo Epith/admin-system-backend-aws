@@ -58,7 +58,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-		}, err
+			Headers:    map[string]string{"Content-Type": "text/plain"},
+		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
 

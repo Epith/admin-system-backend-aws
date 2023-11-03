@@ -75,7 +75,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	//calling create point to dynamo func
 	res, err := CreateUserPoint(request, POINTS_TABLE, USER_TABLE, dynaClient)
 	if err != nil {
-		log.Printf("I am now in the error")
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error creating point account"),

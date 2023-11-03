@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -69,7 +68,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-			Headers:    map[string]string{"content-Type": "application/json"},
+			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, err
 	}
 	dynaClient := dynamodb.New(awsSession)
@@ -77,18 +76,23 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	//calling create point to dynamo func
 	res, err := CreateUserPoint(request, POINTS_TABLE, USER_TABLE, dynaClient)
 	if err != nil {
+		log.Printf("I am now in the error")
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error creating point account"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+			Headers:    map[string]string{"Content-Type": "application/json"},
+		}, nil
 	}
+	if res == nil {
+		log.Println("the res is nil")
+	}
+	log.Println(res)
 	body, _ := json.Marshal(res)
 	stringBody := string(body)
 	return events.APIGatewayProxyResponse{
 		Body:       stringBody,
 		StatusCode: 200,
-		Headers:    map[string]string{"content-Type": "application/json"},
+		Headers:    map[string]string{"Content-Type": "application/json"},
 	}, err
 }
 
@@ -120,7 +124,6 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		},
 		TableName: aws.String(userTable),
 	}
-	log.Printf("error pint 4")
 
 	result, err := dynaClient.GetItem(input)
 	if err != nil {
@@ -129,17 +132,13 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 		}
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
-	log.Printf("error pint 5")
 
-	if result == nil {
-		fmt.Println("fuck your mother")
+	if result.Item == nil {
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
-
-	log.Printf("error pint 6")
 
 	userpoint.Points_ID = uuid.NewString()
 	userpoint.Points = 0

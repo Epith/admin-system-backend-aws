@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/google/uuid"
 )
 
@@ -128,8 +129,22 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 		if err != nil {
 			return nil, errors.New(userData.User_ID)
 		}
+		// send out email
+		for _, role := range postMakerRequest.CheckerRoles {
+			users, err := FetchUsersByRoles(role, req, userTableName, dynaClient)
+			if err != nil {
+				return nil, errors.New(ErrorFailedToFetchRecord)
+			}
+			if len(users) > 0 {
+				for _, user := range users {
+					sendEmail(user.Email)
+				}
+			}
+		}
+
+		// write to db
 		makerRequests := utility.DeconstructPostMakerRequest(postMakerRequest)
-		roleCount := len(postMakerRequest.CheckerRole)
+		roleCount := len(postMakerRequest.CheckerRoles)
 		return utility.BatchWriteToDynamoDB(roleCount, makerRequests, makerTableName, dynaClient)
 
 	} else if postMakerRequest.ResourceType == "points" {
@@ -149,8 +164,22 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 			return nil, errors.New(ErrorInvalidPointsID)
 		}
 
+		// send out email
+		for _, role := range postMakerRequest.CheckerRoles {
+			users, err := FetchUsersByRoles(role, req, userTableName, dynaClient)
+			if err != nil {
+				return nil, errors.New(ErrorFailedToFetchRecord)
+			}
+			if len(users) > 0 {
+				for _, user := range users {
+					sendEmail(user.Email)
+				}
+			}
+		}
+
+		// write to  db
 		makerRequests := utility.DeconstructPostMakerRequest(postMakerRequest)
-		roleCount := len(postMakerRequest.CheckerRole)
+		roleCount := len(postMakerRequest.CheckerRoles)
 		return utility.BatchWriteToDynamoDB(roleCount, makerRequests, makerTableName, dynaClient)
 	}
 
@@ -189,6 +218,43 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 		log.Println("Logging err :", logErr)
 	}
 	return item, nil
+}
+
+func FetchUsersByRoles(role string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) ([]User, error) {
+	//get users with a certain role
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(tableName),
+		IndexName:              aws.String("role-index"),
+		KeyConditionExpression: aws.String("#role = :role"),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":role": {S: aws.String(role)},
+		},
+		ExpressionAttributeNames: map[string]*string{
+			"#role": aws.String("role"),
+		},
+	}
+
+	result, err := dynaClient.Query(input)
+
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToFetchRecordID)
+	}
+	users := new([]User)
+	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, users)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToUnmarshalRecord)
+	}
+
+	if logErr := sendLogs(req, 1, 1, "user", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
+	}
+	return *users, nil
 }
 
 func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]UserPoint, error) {
@@ -284,4 +350,56 @@ func RemoveNewlineAndUnnecessaryWhitespace(body string) string {
 	body = strings.TrimSpace(body)
 
 	return body
+}
+
+func sendEmail(recipientEmail string) (error) {
+	senderEmail := "pesexoh964@glalen.com"
+
+	// Create an SES session
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String("ap-southeast-1"), // Replace with your desired AWS region
+	})
+	if err != nil {
+		return err
+	}
+
+	svc := ses.New(sess)
+
+	// Compose the email message
+	subject := "[Auto-Generated] New Maker Request"
+	body := `
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<title>New Maker Request</title>
+		</head>
+		<body>
+			<p>There is a new maker request in the Ascenda Admin Panel. Go to check it out now:</p>
+			<a href="https://itsag2t2.com/">https://itsag2t2.com/</a>
+		</body>
+		</html>
+	`
+	// Send the email
+	_, err = svc.SendEmail(&ses.SendEmailInput{
+		Destination: &ses.Destination{
+			ToAddresses: []*string{aws.String(recipientEmail)},
+		},
+		Message: &ses.Message{
+			Body: &ses.Body{
+				Text: &ses.Content{
+					Data: aws.String(body),
+				},
+			},
+			Subject: &ses.Content{
+				Data: aws.String(subject),
+			},
+		},
+		Source: aws.String(senderEmail),
+	})
+	if err != nil {
+		log.Printf("Failed to send email: %v", err)
+		return err
+	}
+
+	return  nil
 }

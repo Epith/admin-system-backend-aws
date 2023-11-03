@@ -131,7 +131,7 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		return nil, err
+		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
 	if len(result.Items) == 0 {

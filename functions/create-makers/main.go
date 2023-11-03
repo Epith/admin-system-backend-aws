@@ -215,6 +215,10 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
 
+	if result.Items == nil {
+		return nil, errors.New("user point does not exist")
+	}
+
 	item := new([]UserPoint)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
 	if err != nil {

@@ -82,7 +82,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
-			Body:       string("Error getting points"),
+			Body:       string(err.Error()),
 		}, nil
 	}
 	body, _ := json.Marshal(res)

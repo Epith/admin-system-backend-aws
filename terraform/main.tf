@@ -175,6 +175,7 @@ resource "aws_iam_policy" "dynamodb_access_policy" {
             "dynamodb:DeleteItem",
             "dynamodb:Query",
             "dynamodb:Scan",
+            "dynamodb:BatchWriteItem", 
         ],
         Effect   = "Allow",
         Resource = [

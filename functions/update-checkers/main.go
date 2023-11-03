@@ -166,7 +166,7 @@ func MakerRequestDecision(reqId, checkerRole, checkerUUID, decision, makerTableN
 
 			log.Println(27)
 			// make changes to user table
-			_, err := UpdateUser(userData.User_ID, req, userTableName, dynaClient)
+			_, err := UpdateUser(userData, req, userTableName, dynaClient)
 			if err != nil {
 				return nil, err
 			}
@@ -284,18 +284,7 @@ func FetchMakerRequestsByReqIdAndCheckerRole(reqID, checkerRole, tableName strin
 	return *makerRequests, nil
 }
 
-func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
-	var user User
-
-	//unmarshal body into user struct
-	if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
-		if logErr := sendLogs(req, 2, 3, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorInvalidUserData)
-	}
-	user.User_ID = id
-
+func UpdateUser(user User, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
 	if user.User_ID == "" {
 		err := errors.New(ErrorInvalidUserID)
 		if logErr := sendLogs(req, 2, 3, "user", dynaClient, err); logErr != nil {
@@ -308,7 +297,7 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 	checkUser := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
 			"user_id": {
-				S: aws.String(id),
+				S: aws.String(user.User_ID),
 			},
 		},
 		TableName: aws.String(tableName),

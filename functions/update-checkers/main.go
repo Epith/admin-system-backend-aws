@@ -24,6 +24,7 @@ import (
 var (
 	ErrorCouldNotMarshalItem     = "could not marshal item"
 	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
+	ErrorCouldNotQueryDB         = "could not query db"
 	ErrorInvalidMakerData        = "invalid maker data"
 	ErrorInvalidMakerId          = "invalid maker id"
 	ErrorInvalidPointsID         = "invalid points id"
@@ -220,7 +221,7 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 	result, err := dynaClient.Query(queryInput)
 	
 	if err != nil {
-		return nil, err
+		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
 	if len(result.Items) == 0 {
@@ -248,7 +249,7 @@ func FetchMakerRequestsByReqIdAndCheckerRole(reqID, checkerRole, tableName strin
 	result, err := dynaClient.Query(queryInput)
 	
 	if err != nil {
-		return nil, err
+		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
 	makerRequests := new([]utility.MakerRequest)

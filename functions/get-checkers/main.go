@@ -34,6 +34,7 @@ type Log struct {
 
 var (
 	ErrorCouldNotMarshalItem = "could not marshal item"
+	ErrorCouldNotQueryDB       = "could not query db"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -94,7 +95,7 @@ func FetchMakerRequestsByCheckerRoleAndStatus(checker_role, requestStatus, table
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		return nil, err
+		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
 	makerRequests := new([]utility.MakerRequest)

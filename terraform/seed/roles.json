@@ -1,0 +1,52 @@
+{
+  "role": {"S": "owner"},
+  "access": {
+    "M": {
+      "users": {"L": [{"S": "GET"}, {"S": "POST"}, {"S": "PUT"}, {"S": "DELETE"}]},
+      "points": {"L": [{"S": "GET"}, {"S": "PUT"}]},
+      "logs": {"L": [{"S": "GET"}]},
+      "maker": {"L": [{"S": "GET"}]},
+      "checker": {"L": [{"S": "GET"}, {"S": "PUT"}]},
+      "roles": {"L": [{"S": "GET"}, {"S": "POST"}, {"S": "PUT"}, {"S": "DELETE"}]}
+    }
+  }
+},
+{
+  "role": {"S": "manager"},
+  "access": {
+    "M": {
+      "users": {"L": [{"S": "GET"}, {"S": "POST"}, {"S": "PUT"}]},
+      "points": {"L": [{"S": "GET"}, {"S": "PUT"}]},
+      "logs": {"L": [{"S": "GET"}]},
+      "maker": {"L": [{"S": "GET"}]},
+      "checker": {"L": [{"S": "GET"}, {"S": "PUT"}]},
+      "roles": {"L": [{"S": "GET"}]}
+    }
+  }
+},
+{
+  "role": {"S": "engineer"},
+  "access": {
+    "M": {
+      "users": {"L": [{"S": "GET"}]},
+      "points": {"L": [{"S": "GET"}]},
+      "logs": {"L": [{"S": "GET"}]},
+      "maker": {"L": [{"S": "GET"}, {"S": "POST"}]},
+      "checker": {"L": []},
+      "roles": {"L": [{"S": "GET"}]}
+    }
+  }
+},
+{
+  "role": {"S": "product manager"},
+  "access": {
+    "M": {
+      "users": {"L": [{"S": "GET"}]},
+      "points": {"L": [{"S": "GET"}]},
+      "logs": {"L": []},
+      "maker": {"L": [{"S": "GET"}, {"S": "POST"}]},
+      "checker": {"L": []},
+      "roles": {"L": [{"S": "GET"}]}
+    }
+  }
+}

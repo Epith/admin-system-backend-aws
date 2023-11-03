@@ -64,7 +64,7 @@ resource "aws_dynamodb_table" "points_table" {
 }
 
 resource "aws_dynamodb_table" "makers_table" {
-  name           = "requests"
+  name           = "makers"
   billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "req_id"
   range_key      = "checker_role"

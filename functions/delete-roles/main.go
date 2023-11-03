@@ -72,7 +72,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string("Error deleting Role"),
-			}, err
+				Headers:    map[string]string{"Content-Type": "text/plain"},
+			}, nil
 		}
 		fmt.Println("2")
 		return events.APIGatewayProxyResponse{

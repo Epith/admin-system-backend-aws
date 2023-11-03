@@ -172,7 +172,9 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 			}
 			if len(users) > 0 {
 				for _, user := range users {
-					sendEmail(user.Email)
+					log.Println("user:", user)
+					err := sendEmail(user.Email)
+					log.Println(err)
 				}
 			}
 		}

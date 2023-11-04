@@ -203,15 +203,9 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 			if err != nil {
 				return nil, errors.New(ErrorFailedToFetchRecord)
 			}
-			
-	log.Println(523)
 			if len(users) > 0 {
 				for _, user := range users {
-					
-	log.Println(623)
 					err := sendEmail(user.Email, req, dynaClient)
-					
-	log.Println(723)
 					if err != nil {
 						if logErr := sendLogs(req, 3, 2, "maker", dynaClient, err); logErr != nil {
 							log.Println("Logging err :", logErr)
@@ -221,11 +215,8 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 			}
 		}
 
-		log.Println(823)
 		// write to  db
 		makerRequests := utility.DeconstructPostMakerRequest(postMakerRequest)
-		
-	log.Println(923)
 		roleCount := len(postMakerRequest.CheckerRoles)
 		return utility.BatchWriteToDynamoDB(roleCount, makerRequests, makerTableName, dynaClient)
 	}
@@ -280,10 +271,9 @@ func FetchUsersByRoles(role string, req events.APIGatewayProxyRequest, tableName
 			"#role": aws.String("role"),
 		},
 	}
-	log.Println(123)
+
 	result, err := dynaClient.Query(input)
 
-	log.Println(223)
 	if err != nil {
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
@@ -299,7 +289,6 @@ func FetchUsersByRoles(role string, req events.APIGatewayProxyRequest, tableName
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
 
-	log.Println(323)
 	if logErr := sendLogs(req, 1, 1, "maker", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
@@ -409,11 +398,14 @@ func sendEmail(recipientEmail string, req events.APIGatewayProxyRequest, dynaCli
 		Region: aws.String("ap-southeast-1"), // Replace with your desired AWS region
 	})
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
+	log.Println(123)
 	svc := ses.New(sess)
 
+	log.Println(223)
 	// Compose the email message
 	subject := "[Auto-Generated] New Maker Request"
 	body := `
@@ -440,6 +432,8 @@ func sendEmail(recipientEmail string, req events.APIGatewayProxyRequest, dynaCli
 		},
 		Source: aws.String(senderEmail),
 	})
+	
+	log.Println(323)
 	if err != nil {
 		if logErr := sendLogs(req, 3, 2, "maker", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)

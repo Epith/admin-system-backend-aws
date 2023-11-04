@@ -39,6 +39,11 @@ type Log struct {
 	Timestamp       time.Time   `json:"timestamp"`
 }
 
+type ReturnData struct {
+	Data []User `json:"data"`
+	Key  string `json:"key"`
+}
+
 var (
 	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
 	ErrorFailedToFetchRecord     = "failed to fetch record"
@@ -59,8 +64,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
 
@@ -71,15 +75,14 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string("Error getting user by id"),
-				Headers:    map[string]string{"content-Type": "application/json"},
-			}, err
+			}, nil
 		}
 		body, _ := json.Marshal(res)
 		stringBody := string(body)
 		return events.APIGatewayProxyResponse{
 			Body:       string(stringBody),
 			StatusCode: 200,
-			Headers:    map[string]string{"content-Type": "application/json"},
+			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
 
@@ -89,8 +92,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error getting users"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+		}, nil
 	}
 
 	body, _ := json.Marshal(res)
@@ -98,7 +100,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	return events.APIGatewayProxyResponse{
 		Body:       string(stringBody),
 		StatusCode: 200,
-		Headers:    map[string]string{"content-Type": "application/json"},
+		Headers:    map[string]string{"Content-Type": "application/json"},
 	}, nil
 }
 
@@ -121,6 +123,10 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
 
+	if result.Item == nil {
+		return nil, errors.New("user does not exist")
+	}
+
 	item := new(User)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
@@ -136,52 +142,62 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 	return item, nil
 }
 
-func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]User, error) {
-	//get all users
+func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*ReturnData, error) {
+	//get all users with pagination of limit 100
+	key := req.QueryStringParameters["key"]
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
+
 	item := new([]User)
+	itemWithKey := new(ReturnData)
 
 	input := &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
-		Limit:     aws.Int64(int64(3000)),
+		Limit:     aws.Int64(int64(100)),
 	}
 
-	for {
-
-		if len(lastEvaluatedKey) != 0 {
-			input.ExclusiveStartKey = lastEvaluatedKey
+	if len(key) != 0 {
+		lastEvaluatedKey["user_id"] = &dynamodb.AttributeValue{
+			S: aws.String(key),
 		}
+		input.ExclusiveStartKey = lastEvaluatedKey
+	}
 
-		result, err := dynaClient.Scan(input)
+	result, err := dynaClient.Scan(input)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToFetchRecord)
+	}
 
+	for _, i := range result.Items {
+		user := new(User)
+		err := dynamodbattribute.UnmarshalMap(i, user)
 		if err != nil {
 			if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 				log.Println("Logging err :", logErr)
 			}
-			return nil, errors.New(ErrorFailedToFetchRecord)
+			return nil, err
 		}
-
-		for _, i := range result.Items {
-			user := new(User)
-			err := dynamodbattribute.UnmarshalMap(i, user)
-			if err != nil {
-				if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
-					log.Println("Logging err :", logErr)
-				}
-				return nil, err
-			}
-			*item = append(*item, *user)
-		}
-
-		if len(result.LastEvaluatedKey) == 0 {
-			if logErr := sendLogs(req, 1, 1, "user", dynaClient, err); logErr != nil {
-				log.Println("Logging err :", logErr)
-			}
-			return item, nil
-		}
-
-		lastEvaluatedKey = result.LastEvaluatedKey
+		*item = append(*item, *user)
 	}
+
+	itemWithKey.Data = *item
+
+	if len(result.LastEvaluatedKey) == 0 {
+		if logErr := sendLogs(req, 1, 1, "user", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return itemWithKey, nil
+	}
+
+	itemWithKey.Key = *result.LastEvaluatedKey["user_id"].S
+	if logErr := sendLogs(req, 1, 1, "user", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
+	}
+
+	return itemWithKey, nil
+
 }
 
 func main() {

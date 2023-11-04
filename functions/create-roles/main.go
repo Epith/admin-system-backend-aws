@@ -59,8 +59,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
 
@@ -70,15 +69,14 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error creating role"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+		}, nil
 	}
 	body, _ := json.Marshal(res)
 	stringBody := string(body)
 	return events.APIGatewayProxyResponse{
 		Body:       stringBody,
 		StatusCode: 200,
-		Headers:    map[string]string{"content-Type": "application/json"},
+		Headers:    map[string]string{"Content-Type": "application/json"},
 	}, nil
 }
 

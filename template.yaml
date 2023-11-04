@@ -13,6 +13,24 @@ Globals:
 
 Resources:
 
+  AscendaApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: Prod
+      CorsConfiguration:
+        AllowMethods: ['GET', 'POST', 'PUT', 'DELETE']
+        # AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigins: ['*']
+      # Auth:
+      #   DefaultAuthorizer: lambda-authorizer
+      #   AddDefaultAuthorizerToCorsPreflight: false
+      Domain:
+        DomainName: itsag2t2.com
+        CertificateArn: arn:aws:acm:ap-southeast-1:163683790602:certificate/17266c11-0d22-4f17-b63f-92e2227151c1
+        Route53:
+          HostedZoneId: Z01378052RMMURP5MHP9D
+          EvaluateTargetHealth: false
+
   GetMakerFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -22,6 +40,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref AscendaApi
             Path: /makers
             Method: GET
       Environment: 
@@ -40,6 +59,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref AscendaApi
             Path: /makers
             Method: POST
       Environment: 
@@ -60,6 +80,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref AscendaApi
             Path: /checkers
             Method: GET
       Environment: 
@@ -78,6 +99,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref AscendaApi
             Path: /checkers
             Method: PUT
       Environment: 
@@ -99,8 +121,6 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref AscendaApi
-            Auth:
-              Authorizer: AWS_IAM
             Path: /points
             Method: GET
       Environment: 
@@ -119,6 +139,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref AscendaApi
             Path: /points
             Method: PUT
       Environment: 
@@ -137,6 +158,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref AscendaApi
             Path: /points
             Method: POST
       Environment: 
@@ -157,8 +179,6 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref AscendaApi
-            Auth:
-              Authorizer: AWS_IAM
             Path: /users
             Method: GET
       Environment: 
@@ -177,6 +197,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref AscendaApi
             Path: /users
             Method: POST
       Environment: 
@@ -195,6 +216,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref AscendaApi
             Path: /users
             Method: PUT
       Environment: 
@@ -213,6 +235,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref AscendaApi
             Path: /users
             Method: DELETE
       Environment: 
@@ -231,6 +254,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref AscendaApi
             Path: /logs
             Method: GET
       Environment: 
@@ -248,6 +272,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref AscendaApi
             Path: /roles
             Method: GET
       Environment: 
@@ -266,6 +291,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref AscendaApi
             Path: /roles
             Method: POST
       Environment: 
@@ -284,6 +310,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref AscendaApi
             Path: /roles
             Method: PUT
       Environment: 
@@ -302,6 +329,7 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref AscendaApi
             Path: /roles
             Method: DELETE
       Environment: 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ascenda/functions/utility"
 	"encoding/json"
 	"errors"
 	"log"
@@ -9,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"ascenda/functions/utility"
-
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
@@ -18,11 +17,13 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/google/uuid"
 )
 
 var (
 	ErrorCouldNotMarshalItem     = "could not marshal item"
+	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
 	ErrorInvalidMakerData        = "invalid maker data"
 	ErrorInvalidPointsID         = "invalid points id"
 	ErrorInvalidResourceType     = "resource type is invalid"
@@ -74,8 +75,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
 
@@ -84,17 +84,19 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
-			Body:       string("Error creating maker request"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+			Body:       string(err.Error()),
+		}, nil
 	}
+
 	body, _ := json.Marshal(res)
+
 	stringBody := string(body)
+
 	return events.APIGatewayProxyResponse{
 		Body:       stringBody,
 		StatusCode: 200,
-		Headers:    map[string]string{"content-Type": "application/json"},
-	}, err
+		Headers:    map[string]string{"Content-Type": "application/json"},
+	}, nil
 }
 
 func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userTableName, pointsTableName string, dynaClient dynamodbiface.DynamoDBAPI) (
@@ -103,33 +105,70 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 
 	//marshall body to maker request struct
 	if err := json.Unmarshal([]byte(req.Body), &postMakerRequest); err != nil {
+		if logErr := sendLogs(req, 2, 2, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorInvalidMakerData)
 	}
 
 	if postMakerRequest.MakerUUID == "" {
-		return nil, errors.New(ErrorInvalidMakerData)
+		err := errors.New(ErrorInvalidMakerData)
+		if logErr := sendLogs(req, 2, 2, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, err
 	}
 
 	_, err := FetchUserByID(postMakerRequest.MakerUUID, req, userTableName, dynaClient)
 	if err != nil {
+		if logErr := sendLogs(req, 2, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorUserDoesNotExist)
 	}
 
 	if postMakerRequest.ResourceType == "user" {
-
 		//marshall body to point struct
 		var userData User
 		if err := json.Unmarshal(postMakerRequest.RequestData, &userData); err != nil {
+			if logErr := sendLogs(req, 2, 2, "maker", dynaClient, err); logErr != nil {
+				log.Println("Logging err :", logErr)
+			}
 			return nil, errors.New(ErrorCouldNotMarshalItem)
 		}
+
 		// check if user exist
 		_, err = FetchUserByID(userData.User_ID, req, userTableName, dynaClient)
 		if err != nil {
+			if logErr := sendLogs(req, 2, 1, "maker", dynaClient, err); logErr != nil {
+				log.Println("Logging err :", logErr)
+			}
 			return nil, errors.New(userData.User_ID)
 		}
+		// send out email
+		for _, role := range postMakerRequest.CheckerRoles {
+			users, err := FetchUsersByRoles(role, req, userTableName, dynaClient)
+			if err != nil {
+				if logErr := sendLogs(req, 2, 2, "maker", dynaClient, err); logErr != nil {
+					log.Println("Logging err :", logErr)
+				}
+				return nil, errors.New(ErrorFailedToFetchRecord)
+			}
+			if len(users) > 0 {
+				for _, user := range users {
+					err := sendEmail(user.Email, req, dynaClient)
+					if err != nil {
+						if logErr := sendLogs(req, 3, 2, "maker", dynaClient, err); logErr != nil {
+							log.Println("Logging err :", logErr)
+						}
+					}
+				}
+			}
+		}
 
+		// write to db
 		makerRequests := utility.DeconstructPostMakerRequest(postMakerRequest)
-		roleCount := len(postMakerRequest.CheckerRole)
+		roleCount := len(postMakerRequest.CheckerRoles)
 		return utility.BatchWriteToDynamoDB(roleCount, makerRequests, makerTableName, dynaClient)
 
 	} else if postMakerRequest.ResourceType == "points" {
@@ -137,20 +176,48 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 		//marshall body to point struct
 		var pointsData UserPoint
 		if err := json.Unmarshal(postMakerRequest.RequestData, &pointsData); err != nil {
+			if logErr := sendLogs(req, 2, 2, "maker", dynaClient, err); logErr != nil {
+				log.Println("Logging err :", logErr)
+			}
 			return nil, errors.New(ErrorCouldNotMarshalItem)
 		}
 		// check if points exist
 		_, err = FetchUserPoint(pointsData.User_ID, req, pointsTableName, dynaClient)
 		if err != nil {
+			if logErr := sendLogs(req, 2, 1, "maker", dynaClient, err); logErr != nil {
+				log.Println("Logging err :", logErr)
+			}
 			return nil, errors.New(ErrorPointsDoesNotExist)
 		}
 
 		if pointsData.Points_ID == "" {
+			if logErr := sendLogs(req, 2, 2, "maker", dynaClient, err); logErr != nil {
+				log.Println("Logging err :", logErr)
+			}
 			return nil, errors.New(ErrorInvalidPointsID)
 		}
 
+		// send out email
+		for _, role := range postMakerRequest.CheckerRoles {
+			users, err := FetchUsersByRoles(role, req, userTableName, dynaClient)
+			if err != nil {
+				return nil, errors.New(ErrorFailedToFetchRecord)
+			}
+			if len(users) > 0 {
+				for _, user := range users {
+					err := sendEmail(user.Email, req, dynaClient)
+					if err != nil {
+						if logErr := sendLogs(req, 3, 2, "maker", dynaClient, err); logErr != nil {
+							log.Println("Logging err :", logErr)
+						}
+					}
+				}
+			}
+		}
+
+		// write to  db
 		makerRequests := utility.DeconstructPostMakerRequest(postMakerRequest)
-		roleCount := len(postMakerRequest.CheckerRole)
+		roleCount := len(postMakerRequest.CheckerRoles)
 		return utility.BatchWriteToDynamoDB(roleCount, makerRequests, makerTableName, dynaClient)
 	}
 
@@ -169,13 +236,13 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 	}
 
 	result, err := dynaClient.GetItem(input)
+
 	if err != nil {
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
-
 	item := new(User)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
@@ -189,6 +256,43 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 		log.Println("Logging err :", logErr)
 	}
 	return item, nil
+}
+
+func FetchUsersByRoles(role string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) ([]User, error) {
+	//get users with a certain role
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(tableName),
+		IndexName:              aws.String("role-index"),
+		KeyConditionExpression: aws.String("#role = :role"),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":role": {S: aws.String(role)},
+		},
+		ExpressionAttributeNames: map[string]*string{
+			"#role": aws.String("role"),
+		},
+	}
+
+	result, err := dynaClient.Query(input)
+
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToFetchRecordID)
+	}
+	users := new([]User)
+	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, users)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToUnmarshalRecord)
+	}
+
+	if logErr := sendLogs(req, 1, 1, "maker", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
+	}
+	return *users, nil
 }
 
 func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]UserPoint, error) {
@@ -213,6 +317,10 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorFailedToFetchRecord)
+	}
+
+	if result.Items == nil {
+		return nil, errors.New("user point does not exist")
 	}
 
 	item := new([]UserPoint)
@@ -280,4 +388,54 @@ func RemoveNewlineAndUnnecessaryWhitespace(body string) string {
 	body = strings.TrimSpace(body)
 
 	return body
+}
+
+func sendEmail(recipientEmail string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) (error) {
+	senderEmail := "ryan.peh.2021@scis.smu.edu.sg"
+
+	// Create an SES session
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String("ap-southeast-1"), // Replace with your desired AWS region
+	})
+	if err != nil {
+		return err
+	}
+
+	svc := ses.New(sess)
+
+	// Compose the email message
+	subject := "[Auto-Generated] New Maker Request"
+	body := `
+		New Maker Request
+		
+		There is a new maker request in the Ascenda Admin Panel. Go to check it out now:
+		
+		https://itsag2t2.com/
+	`
+	// Send the email
+	_, err = svc.SendEmail(&ses.SendEmailInput{
+		Destination: &ses.Destination{
+			ToAddresses: []*string{aws.String(recipientEmail)},
+		},
+		Message: &ses.Message{
+			Body: &ses.Body{
+				Text: &ses.Content{
+					Data: aws.String(body),
+				},
+			},
+			Subject: &ses.Content{
+				Data: aws.String(subject),
+			},
+		},
+		Source: aws.String(senderEmail),
+	})
+	if err != nil {
+		if logErr := sendLogs(req, 3, 2, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		log.Printf("Failed to send email: %v", err)
+		return err
+	}
+
+	return  nil
 }

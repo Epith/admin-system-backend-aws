@@ -64,8 +64,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
 	cognitoClient := cognitoidentityprovider.New(awsSession)
@@ -77,8 +76,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string("Error updating user"),
-				Headers:    map[string]string{"content-Type": "application/json"},
-			}, err
+			}, nil
 		}
 
 		body, _ := json.Marshal(res)
@@ -86,7 +84,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			Body:       string(stringBody),
 			StatusCode: 200,
-			Headers:    map[string]string{"content-Type": "application/json"},
+			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
 
@@ -97,8 +95,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	return events.APIGatewayProxyResponse{
 		StatusCode: 404,
 		Body:       string("Invalid user data"),
-		Headers:    map[string]string{"content-Type": "application/json"},
-	}, errors.New(ErrorInvalidUserData)
+	}, nil
 
 }
 
@@ -123,13 +120,25 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 	}
 
 	//checking if user exist
-	currentUser, _ := FetchUserByID(id, req, tableName, dynaClient)
-	if currentUser != nil && len(currentUser.User_ID) == 0 {
-		err := errors.New(ErrorUserDoesNotExist)
-		if logErr := sendLogs(req, 2, 3, "user", dynaClient, err); logErr != nil {
+	checkUser := &dynamodb.GetItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"user_id": {
+				S: aws.String(id),
+			},
+		},
+		TableName: aws.String(tableName),
+	}
+
+	result, err := dynaClient.GetItem(checkUser)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
-		return nil, err
+		return nil, errors.New(ErrorFailedToFetchRecordID)
+	}
+
+	if result.Item == nil {
+		return nil, errors.New("user does not exist")
 	}
 
 	av, err := dynamodbattribute.MarshalMap(user)
@@ -183,40 +192,6 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 	}
 
 	return &user, nil
-}
-
-func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
-	//get single user from dynamo
-	input := &dynamodb.GetItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			"user_id": {
-				S: aws.String(id),
-			},
-		},
-		TableName: aws.String(tableName),
-	}
-
-	result, err := dynaClient.GetItem(input)
-	if err != nil {
-		if logErr := sendLogs(req, 3, 3, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorFailedToFetchRecordID)
-	}
-
-	item := new(User)
-	err = dynamodbattribute.UnmarshalMap(result.Item, item)
-	if err != nil {
-		if logErr := sendLogs(req, 3, 3, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
-	}
-
-	if logErr := sendLogs(req, 1, 3, "user", dynaClient, err); logErr != nil {
-		log.Println("Logging err :", logErr)
-	}
-	return item, nil
 }
 
 func main() {

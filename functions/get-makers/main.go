@@ -1,14 +1,14 @@
 package main
 
 import (
+	"ascenda/functions/utility"
 	"encoding/json"
 	"errors"
+	"log"
 	"os"
 	"regexp"
 	"strings"
 	"time"
-
-	"ascenda/functions/utility"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -33,9 +33,11 @@ type Log struct {
 }
 
 var (
-	ErrorFailedToFetchRecord     = "failed to fetch record"
-	ErrorCouldNotMarshalItem     = "could not marshal item"
-	ErrorMakerDoesNotExist       = "request.maker_id does not exist"
+	ErrorFailedToFetchRecord   = "failed to fetch record"
+	ErrorCouldNotMarshalItem   = "could not marshal item"
+	ErrorCouldNotQueryDB       = "could not query db"
+	ErrorMakerReqDoesNotExist  = "maker request id does not exist"
+	ErrorCouldNotDynamoPutItem = "could not dynamo put item"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -52,8 +54,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
 
@@ -64,14 +65,13 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string(err.Error()),
-				Headers:    map[string]string{"content-Type": "application/json"},
-			}, err
+			}, nil
 		}
 		stringBody, _ := json.Marshal(res)
 		return events.APIGatewayProxyResponse{
 			Body:       string(stringBody),
 			StatusCode: 200,
-			Headers:    map[string]string{"content-Type": "application/json"},
+			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
 
@@ -84,14 +84,23 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string(err.Error()),
-				Headers:    map[string]string{"content-Type": "application/json"},
-			}, err
+			}, nil
 		}
 		stringBody, _ := json.Marshal(res)
 		return events.APIGatewayProxyResponse{
 			Body:       string(stringBody),
 			StatusCode: 200,
-			Headers:    map[string]string{"content-Type": "application/json"},
+			Headers:    map[string]string{"Content-Type": "application/json"},
+		}, nil
+	} else if len(makerId) > 0 && len(status) == 0 {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Missing status query param"),
+		}, nil
+	} else if len(makerId) == 0 && len(status) > 0 {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Missing maker_id query param"),
 		}, nil
 	}
 	// get all
@@ -100,16 +109,15 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string(err.Error()),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+		}, nil
 	}
-	
+
 	body, _ := json.Marshal(res)
 	stringBody := string(body)
 	return events.APIGatewayProxyResponse{
 		Body:       string(stringBody),
 		StatusCode: 200,
-		Headers:    map[string]string{"content-Type": "application/json"},
+		Headers:    map[string]string{"Content-Type": "application/json"},
 	}, nil
 }
 
@@ -124,21 +132,27 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		return nil, err
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
 	if len(result.Items) == 0 {
-		return nil, errors.New(ErrorMakerDoesNotExist)
+		return nil, errors.New(ErrorMakerReqDoesNotExist)
 	}
 
 	makerRequests := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorCouldNotMarshalItem)
 	}
 
 	return utility.FormatMakerRequest(*makerRequests), nil
-	
+
 }
 
 func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.ReturnMakerRequest, error) {
@@ -149,10 +163,19 @@ func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dyn
 
 	result, err := dynaClient.Scan(input)
 	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
 	item := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(utility.ErrorCouldNotUnmarshalItem)
+	}
 	return utility.FormatMakerRequest(*item), nil
 }
 
@@ -173,13 +196,19 @@ func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName stri
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		return nil, err
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
 	makerRequests := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(utility.ErrorCouldNotUnmarshalItem)
 	}
 
 	return utility.FormatMakerRequest(*makerRequests), nil

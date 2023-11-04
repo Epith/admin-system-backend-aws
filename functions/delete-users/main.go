@@ -32,8 +32,10 @@ type Log struct {
 }
 
 var (
-	ErrorInvalidUUID        = "invalid UUID"
-	ErrorCouldNotDeleteItem = "could not delete item"
+	ErrorInvalidUUID           = "invalid UUID"
+	ErrorCouldNotDeleteItem    = "could not delete item"
+	ErrorUserDoesNotExist      = "user does not exist"
+	ErrorFailedToFetchRecordID = "failed to fetch record by user id"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -51,8 +53,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
 	cognitoClient := cognitoidentityprovider.New(awsSession)
@@ -63,13 +64,11 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string("Error deleting User"),
-				Headers:    map[string]string{"content-Type": "application/json"},
-			}, res
+			}, nil
 		}
 		return events.APIGatewayProxyResponse{
 			Body:       "Record successfully deleted",
 			StatusCode: 200,
-			Headers:    map[string]string{"content-Type": "application/json"},
 		}, nil
 	}
 
@@ -80,11 +79,31 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	return events.APIGatewayProxyResponse{
 		Body:       "User ID missing",
 		StatusCode: 404,
-		Headers:    map[string]string{"content-Type": "application/json"},
-	}, errors.New(ErrorInvalidUUID)
+	}, nil
 }
 
 func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI, cognitoClient *cognitoidentityprovider.CognitoIdentityProvider) error {
+	//check if user exist
+	checkUser := &dynamodb.GetItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"user_id": {
+				S: aws.String(id),
+			},
+		},
+		TableName: aws.String(tableName),
+	}
+
+	result, err := dynaClient.GetItem(checkUser)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 4, "user", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return errors.New(ErrorFailedToFetchRecordID)
+	}
+
+	if result.Item == nil {
+		return errors.New(ErrorUserDoesNotExist)
+	}
 
 	//attempt to delete user in cognito
 	cognitoInput := &cognitoidentityprovider.AdminDeleteUserInput{
@@ -106,7 +125,7 @@ func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, table
 		},
 		TableName: aws.String(tableName),
 	}
-	_, err := dynaClient.DeleteItem(input)
+	_, err = dynaClient.DeleteItem(input)
 	if err != nil {
 		if logErr := sendLogs(req, 3, 4, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)

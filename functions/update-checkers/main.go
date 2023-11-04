@@ -24,6 +24,7 @@ import (
 var (
 	ErrorCouldNotMarshalItem     = "could not marshal item"
 	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
+	ErrorCouldNotQueryDB         = "could not query db"
 	ErrorInvalidMakerData        = "invalid maker data"
 	ErrorInvalidMakerId          = "invalid maker id"
 	ErrorInvalidPointsID         = "invalid points id"
@@ -87,8 +88,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error setting up aws session"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
 
@@ -99,18 +99,17 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 400,
 			Body:       string("Error in unmarshalling json body"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+		}, nil
 	}
+	
 	if decisionBody.RequestId == "" || decisionBody.CheckerId == "" ||
 		decisionBody.Decision == "" || decisionBody.CheckerRole == "" {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 400,
 			Body:       string("Error missing json fields"),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+		}, nil
 	}
-
+	
 	//calling  to dynamo func
 	res, err := MakerRequestDecision(decisionBody.RequestId, decisionBody.CheckerRole, decisionBody.CheckerId,
 		decisionBody.Decision, MAKER_TABLE, USER_TABLE, POINTS_TABLE, request, dynaClient)
@@ -118,16 +117,15 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{
 			StatusCode: 400,
 			Body:       string(err.Error()),
-			Headers:    map[string]string{"content-Type": "application/json"},
-		}, err
+		}, nil
 	}
 	body, _ := json.Marshal(res)
 	stringBody := string(body)
 	return events.APIGatewayProxyResponse{
 		Body:       stringBody,
 		StatusCode: 200,
-		Headers:    map[string]string{"content-Type": "application/json"},
-	}, err
+		Headers:    map[string]string{"Content-Type": "application/json"},
+	}, nil
 }
 
 func MakerRequestDecision(reqId, checkerRole, checkerUUID, decision, makerTableName, userTableName, pointsTableName string,
@@ -135,34 +133,50 @@ func MakerRequestDecision(reqId, checkerRole, checkerUUID, decision, makerTableN
 	[]utility.ReturnMakerRequest,
 	error,
 ) {
-	currentMakerRequest, err := FetchMakerRequestsByReqIdAndCheckerRole(reqId, checkerRole, makerTableName, dynaClient)
+	currentMakerRequest, err := FetchMakerRequestsByReqIdAndCheckerRole(reqId, checkerRole, makerTableName, req, dynaClient)
 	if err != nil {
+		if logErr := sendLogs(req, 2, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, err
 	}
 	if len(currentMakerRequest) == 0 || len(currentMakerRequest[0].RequestUUID) == 0 {
+		if logErr := sendLogs(req, 2, 3, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorMakerDoesNotExist)
 	}
-
+	
 	if decision == "approve" {
 		resourceType := currentMakerRequest[0].ResourceType
+
 		// if maker request to change user table
 		if resourceType == "user" {
 			var userData User
 			if err := json.Unmarshal(currentMakerRequest[0].RequestData, &userData); err != nil {
+				if logErr := sendLogs(req, 2, 3, "maker", dynaClient, err); logErr != nil {
+					log.Println("Logging err :", logErr)
+				}
 				return nil, errors.New(ErrorFailedToUnmarshalRecord)
 			}
+			
 			_, err = FetchUserByID(userData.User_ID, req, userTableName, dynaClient)
 			if err != nil {
+				if logErr := sendLogs(req, 2, 1, "maker", dynaClient, err); logErr != nil {
+					log.Println("Logging err :", logErr)
+				}
 				return nil, errors.New(ErrorUserDoesNotExist)
 			}
 
 			if len(userData.User_ID) == 0 {
 				return nil, errors.New(ErrorInvalidUserID)
 			}
-
 			// make changes to user table
-			_, err := UpdateUser(userData.User_ID, req, userTableName, dynaClient)
+			_, err := UpdateUser(userData, req, userTableName, dynaClient)
 			if err != nil {
+				if logErr := sendLogs(req, 3, 3, "maker", dynaClient, err); logErr != nil {
+					log.Println("Logging err :", logErr)
+				}
 				return nil, err
 			}
 
@@ -170,40 +184,62 @@ func MakerRequestDecision(reqId, checkerRole, checkerUUID, decision, makerTableN
 		} else if resourceType == "points" {
 			var pointsData UserPoint
 			if err := json.Unmarshal(currentMakerRequest[0].RequestData, &pointsData); err != nil {
+				if logErr := sendLogs(req, 2, 3, "maker", dynaClient, err); logErr != nil {
+					log.Println("Logging err :", logErr)
+				}
 				return nil, errors.New(ErrorCouldNotMarshalItem)
 			}
 			_, err = FetchUserPoint(pointsData.User_ID, req, pointsTableName, dynaClient)
 			if err != nil {
+				if logErr := sendLogs(req, 2, 1, "maker", dynaClient, err); logErr != nil {
+					log.Println("Logging err :", logErr)
+				}
 				return nil, errors.New(ErrorPointsDoesNotExist)
 			}
 
 			// make changes to points table
-			_, err := UpdateUserPoint(pointsData.User_ID, req, pointsTableName, dynaClient)
+			_, err := UpdateUserPoint(pointsData, req, pointsTableName, dynaClient)
 			if err != nil {
+				if logErr := sendLogs(req, 3, 3, "maker", dynaClient, err); logErr != nil {
+					log.Println("Logging err :", logErr)
+				}
 				return nil, err
 			}
 		} else {
+			if logErr := sendLogs(req, 2, 3, "maker", dynaClient, err); logErr != nil {
+				log.Println("Logging err :", logErr)
+			}
 			return nil, errors.New(ErrorInvalidResourceType)
 		}
 		decision = "approved"
 	} else if decision == "reject" {
 		decision = "rejected"
 	} else {
+		if logErr := sendLogs(req, 2, 3, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorInvalidDecision)
 	}
 
 	makerRequests, err := FetchMakerRequest(reqId, makerTableName, req, dynaClient)
 	if err != nil {
+		if logErr := sendLogs(req, 2, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, err
 	}
 	for i, request := range makerRequests {
 		request.RequestStatus = decision
 		request.CheckerUUID = checkerUUID
+		
 		makerRequests[i] = request
 	}
 
 	retMakerRequest, err := utility.BatchWriteToDynamoDB(len(makerRequests), makerRequests, makerTableName, dynaClient)
 	if err != nil {
+		if logErr := sendLogs(req, 3, 3, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, err
 	}
 	return retMakerRequest, nil
@@ -219,24 +255,33 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 	}
 
 	result, err := dynaClient.Query(queryInput)
+	
 	if err != nil {
-		return nil, err
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
 	if len(result.Items) == 0 {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorMakerDoesNotExist)
 	}
-
 	makerRequests := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorCouldNotMarshalItem)
 	}
 
 	return *makerRequests, nil
 }
 
-func FetchMakerRequestsByReqIdAndCheckerRole(reqID, checkerRole, tableName string, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.MakerRequest, error) {
+func FetchMakerRequestsByReqIdAndCheckerRole(reqID, checkerRole, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.MakerRequest, error) {
 	queryInput := &dynamodb.QueryInput{
 		TableName:              aws.String(tableName),
 		KeyConditionExpression: aws.String("req_id = :req_id AND checker_role = :checker_role"),
@@ -247,35 +292,35 @@ func FetchMakerRequestsByReqIdAndCheckerRole(reqID, checkerRole, tableName strin
 	}
 
 	result, err := dynaClient.Query(queryInput)
+	
 	if err != nil {
-		return nil, err
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
 	makerRequests := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
+	
 	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorCouldNotMarshalItem)
 	}
 
 	if len(*makerRequests) == 0 {
+		if logErr := sendLogs(req, 2, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorMakerDoesNotExist)
 	}
 
 	return *makerRequests, nil
 }
 
-func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
-	var user User
-
-	//unmarshal body into user struct
-	if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
-		if logErr := sendLogs(req, 2, 3, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorInvalidUserData)
-	}
-	user.User_ID = id
-
+func UpdateUser(user User, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
 	if user.User_ID == "" {
 		err := errors.New(ErrorInvalidUserID)
 		if logErr := sendLogs(req, 2, 3, "user", dynaClient, err); logErr != nil {
@@ -285,13 +330,25 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 	}
 
 	//checking if user exist
-	currentUser, _ := FetchUserByID(id, req, tableName, dynaClient)
-	if currentUser != nil && len(currentUser.User_ID) == 0 {
-		err := errors.New(ErrorUserDoesNotExist)
-		if logErr := sendLogs(req, 2, 3, "user", dynaClient, err); logErr != nil {
+	checkUser := &dynamodb.GetItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"user_id": {
+				S: aws.String(user.User_ID),
+			},
+		},
+		TableName: aws.String(tableName),
+	}
+
+	result, err := dynaClient.GetItem(checkUser)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
-		return nil, err
+		return nil, errors.New(ErrorFailedToFetchRecordID)
+	}
+
+	if result.Item == nil {
+		return nil, errors.New("user does not exist")
 	}
 
 	av, err := dynamodbattribute.MarshalMap(user)
@@ -341,6 +398,10 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
 
+	if result.Item == nil {
+		return nil, errors.New("user does not exist")
+	}
+
 	item := new(User)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
@@ -356,18 +417,8 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 	return item, nil
 }
 
-func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
-	var userpoint UserPoint
-
-	//unmarshal body into userpoint struct
-	if err := json.Unmarshal([]byte(req.Body), &userpoint); err != nil {
-		if logErr := sendLogs(req, 2, 3, "point", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorInvalidUserData)
-	}
-	userpoint.User_ID = user_id
-
+func UpdateUserPoint(userpoint UserPoint, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
+	// check if points id is empty
 	if userpoint.Points_ID == "" {
 		err := errors.New(ErrorInvalidPointsID)
 		if logErr := sendLogs(req, 2, 3, "point", dynaClient, err); logErr != nil {
@@ -377,7 +428,7 @@ func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableNam
 	}
 
 	//checking if userpoint exist
-	results, err := FetchUserPoint(user_id, req, tableName, dynaClient)
+	results, err := FetchUserPoint(userpoint.User_ID, req, tableName, dynaClient)
 	if err != nil {
 		if logErr := sendLogs(req, 2, 3, "point", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
@@ -448,6 +499,10 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorFailedToFetchRecord)
+	}
+
+	if result.Items == nil {
+		return nil, errors.New("user point does not exist")
 	}
 
 	item := new([]UserPoint)

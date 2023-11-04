@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -170,7 +169,7 @@ func FetchUsersPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 	}
 
 	result, err := dynaClient.Scan(input)
-	fmt.Println(result.LastEvaluatedKey)
+
 	if err != nil {
 		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)

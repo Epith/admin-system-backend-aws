@@ -192,7 +192,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/create-users/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/UserLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -211,7 +211,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/update-users/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/UserLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -230,7 +230,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/delete-users/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/UserLambdaRole
       Events:
         Api:
           Type: HttpApi

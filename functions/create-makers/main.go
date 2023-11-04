@@ -391,7 +391,7 @@ func RemoveNewlineAndUnnecessaryWhitespace(body string) string {
 }
 
 func sendEmail(recipientEmail string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) (error) {
-	senderEmail := "ryan.peh.2021@scis.smu.edu.sg"
+	senderEmail := "pesexoh964@glalen.com"
 
 	// Create an SES session
 	sess, err := session.NewSession(&aws.Config{
@@ -402,10 +402,8 @@ func sendEmail(recipientEmail string, req events.APIGatewayProxyRequest, dynaCli
 		return err
 	}
 
-	log.Println(123)
 	svc := ses.New(sess)
 
-	log.Println(223)
 	// Compose the email message
 	subject := "[Auto-Generated] New Maker Request"
 	body := `
@@ -433,7 +431,6 @@ func sendEmail(recipientEmail string, req events.APIGatewayProxyRequest, dynaCli
 		Source: aws.String(senderEmail),
 	})
 	
-	log.Println(323)
 	if err != nil {
 		if logErr := sendLogs(req, 3, 2, "maker", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)

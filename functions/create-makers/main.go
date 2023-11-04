@@ -271,7 +271,7 @@ func FetchUsersByRoles(role string, req events.APIGatewayProxyRequest, tableName
 			"#role": aws.String("role"),
 		},
 	}
-
+	log.Println(123)
 	result, err := dynaClient.Query(input)
 
 	if err != nil {
@@ -437,5 +437,6 @@ func sendEmail(recipientEmail string, req events.APIGatewayProxyRequest, dynaCli
 		return err
 	}
 
+	log.Printf("Send email to: %v", recipientEmail)
 	return  nil
 }

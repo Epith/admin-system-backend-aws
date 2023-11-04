@@ -4,6 +4,7 @@ import (
 	"ascenda/functions/utility"
 	"encoding/json"
 	"errors"
+	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -131,6 +132,9 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
@@ -141,6 +145,9 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 	makerRequests := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorCouldNotMarshalItem)
 	}
 
@@ -148,19 +155,63 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 
 }
 
-func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.ReturnMakerRequest, error) {
+func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) (*utility.ReturnData, error) {
+	//get all user points with pagination of limit 100
+	keyReq := req.QueryStringParameters["keyReq"]
+	keyRole := req.QueryStringParameters["keyRole"]
+	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
+
 	input := &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
-		Limit:     aws.Int64(int64(3000)),
+		Limit:     aws.Int64(int64(100)),
+	}
+
+	if len(keyReq) != 0 && len(keyRole) != 0 {
+		lastEvaluatedKey["req_id"] = &dynamodb.AttributeValue{
+			S: aws.String(keyReq),
+		}
+		lastEvaluatedKey["checker_role"] = &dynamodb.AttributeValue{
+			S: aws.String(keyRole),
+		}
+		input.ExclusiveStartKey = lastEvaluatedKey
 	}
 
 	result, err := dynaClient.Scan(input)
+
 	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
 	item := new([]utility.MakerRequest)
+
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
-	return utility.FormatMakerRequest(*item), nil
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(utility.ErrorCouldNotUnmarshalItem)
+	}
+	
+	itemWithKey := new(utility.ReturnData)
+	formattedMakerRequests := utility.FormatMakerRequest(*item)
+	itemWithKey.Data = formattedMakerRequests
+
+	if len(result.LastEvaluatedKey) == 0 {
+		if logErr := sendLogs(req, 1, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return itemWithKey, nil
+	}
+
+	itemWithKey.KeyReq = *result.LastEvaluatedKey["req_id"].S
+	itemWithKey.KeyRole = *result.LastEvaluatedKey["checker_role"].S
+	if logErr := sendLogs(req, 1, 1, "maker", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
+	}
+
+	return itemWithKey, nil
 }
 
 func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.ReturnMakerRequest, error) {
@@ -180,13 +231,19 @@ func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName stri
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
 	makerRequests := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(utility.ErrorCouldNotUnmarshalItem)
 	}
 
 	return utility.FormatMakerRequest(*makerRequests), nil

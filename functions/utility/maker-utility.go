@@ -42,6 +42,12 @@ type NewMakerRequest struct {
 	RequestData  json.RawMessage `json:"request_data"`
 }
 
+type ReturnData struct {
+	Data    []ReturnMakerRequest `json:"data"`
+	KeyReq  string               `json:"key_req"`
+	KeyRole string               `json:"key_role"`
+}
+
 func BatchWriteToDynamoDB(roleCount int, makerRequests []MakerRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) ([]ReturnMakerRequest, error) {
 	writeRequests := make([]*dynamodb.WriteRequest, roleCount)
 

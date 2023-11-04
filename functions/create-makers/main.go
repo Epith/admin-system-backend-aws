@@ -105,15 +105,25 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 
 	//marshall body to maker request struct
 	if err := json.Unmarshal([]byte(req.Body), &postMakerRequest); err != nil {
+		if logErr := sendLogs(req, 2, 2, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorInvalidMakerData)
 	}
 
 	if postMakerRequest.MakerUUID == "" {
-		return nil, errors.New(ErrorInvalidMakerData)
+		err := errors.New(ErrorInvalidMakerData)
+		if logErr := sendLogs(req, 2, 2, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, err
 	}
 
 	_, err := FetchUserByID(postMakerRequest.MakerUUID, req, userTableName, dynaClient)
 	if err != nil {
+		if logErr := sendLogs(req, 2, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorUserDoesNotExist)
 	}
 
@@ -121,23 +131,37 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 		//marshall body to point struct
 		var userData User
 		if err := json.Unmarshal(postMakerRequest.RequestData, &userData); err != nil {
+			if logErr := sendLogs(req, 2, 2, "maker", dynaClient, err); logErr != nil {
+				log.Println("Logging err :", logErr)
+			}
 			return nil, errors.New(ErrorCouldNotMarshalItem)
 		}
 
 		// check if user exist
 		_, err = FetchUserByID(userData.User_ID, req, userTableName, dynaClient)
 		if err != nil {
+			if logErr := sendLogs(req, 2, 1, "maker", dynaClient, err); logErr != nil {
+				log.Println("Logging err :", logErr)
+			}
 			return nil, errors.New(userData.User_ID)
 		}
 		// send out email
 		for _, role := range postMakerRequest.CheckerRoles {
 			users, err := FetchUsersByRoles(role, req, userTableName, dynaClient)
 			if err != nil {
+				if logErr := sendLogs(req, 2, 2, "maker", dynaClient, err); logErr != nil {
+					log.Println("Logging err :", logErr)
+				}
 				return nil, errors.New(ErrorFailedToFetchRecord)
 			}
 			if len(users) > 0 {
 				for _, user := range users {
-					sendEmail(user.Email)
+					err := sendEmail(user.Email, req, dynaClient)
+					if err != nil {
+						if logErr := sendLogs(req, 3, 2, "maker", dynaClient, err); logErr != nil {
+							log.Println("Logging err :", logErr)
+						}
+					}
 				}
 			}
 		}
@@ -152,15 +176,24 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 		//marshall body to point struct
 		var pointsData UserPoint
 		if err := json.Unmarshal(postMakerRequest.RequestData, &pointsData); err != nil {
+			if logErr := sendLogs(req, 2, 2, "maker", dynaClient, err); logErr != nil {
+				log.Println("Logging err :", logErr)
+			}
 			return nil, errors.New(ErrorCouldNotMarshalItem)
 		}
 		// check if points exist
 		_, err = FetchUserPoint(pointsData.User_ID, req, pointsTableName, dynaClient)
 		if err != nil {
+			if logErr := sendLogs(req, 2, 1, "maker", dynaClient, err); logErr != nil {
+				log.Println("Logging err :", logErr)
+			}
 			return nil, errors.New(ErrorPointsDoesNotExist)
 		}
 
 		if pointsData.Points_ID == "" {
+			if logErr := sendLogs(req, 2, 2, "maker", dynaClient, err); logErr != nil {
+				log.Println("Logging err :", logErr)
+			}
 			return nil, errors.New(ErrorInvalidPointsID)
 		}
 
@@ -172,7 +205,12 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 			}
 			if len(users) > 0 {
 				for _, user := range users {
-					sendEmail(user.Email)
+					err := sendEmail(user.Email, req, dynaClient)
+					if err != nil {
+						if logErr := sendLogs(req, 3, 2, "maker", dynaClient, err); logErr != nil {
+							log.Println("Logging err :", logErr)
+						}
+					}
 				}
 			}
 		}
@@ -245,13 +283,13 @@ func FetchUsersByRoles(role string, req events.APIGatewayProxyRequest, tableName
 	users := new([]User)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, users)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
 
-	if logErr := sendLogs(req, 1, 1, "user", dynaClient, err); logErr != nil {
+	if logErr := sendLogs(req, 1, 1, "maker", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
 	return *users, nil
@@ -352,7 +390,7 @@ func RemoveNewlineAndUnnecessaryWhitespace(body string) string {
 	return body
 }
 
-func sendEmail(recipientEmail string) (error) {
+func sendEmail(recipientEmail string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) (error) {
 	senderEmail := "ryan.peh.2021@scis.smu.edu.sg"
 
 	// Create an SES session
@@ -392,6 +430,9 @@ func sendEmail(recipientEmail string) (error) {
 		Source: aws.String(senderEmail),
 	})
 	if err != nil {
+		if logErr := sendLogs(req, 3, 2, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		log.Printf("Failed to send email: %v", err)
 		return err
 	}

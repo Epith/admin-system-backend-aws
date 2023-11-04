@@ -3,6 +3,7 @@ package utility
 import (
 	"encoding/json"
 	"errors"
+	"log"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
@@ -73,6 +74,7 @@ func BatchWriteToDynamoDB(roleCount int, makerRequests []MakerRequest, tableName
 	}
 	_, err := dynaClient.BatchWriteItem(input)
 
+	log.Println(1023)
 	if err != nil {
 		return nil, errors.New(ErrorCouldNotDynamoPutItem)
 	}

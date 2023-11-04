@@ -207,7 +207,11 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 	log.Println(523)
 			if len(users) > 0 {
 				for _, user := range users {
+					
+	log.Println(623)
 					err := sendEmail(user.Email, req, dynaClient)
+					
+	log.Println(723)
 					if err != nil {
 						if logErr := sendLogs(req, 3, 2, "maker", dynaClient, err); logErr != nil {
 							log.Println("Logging err :", logErr)
@@ -217,8 +221,11 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 			}
 		}
 
+		log.Println(823)
 		// write to  db
 		makerRequests := utility.DeconstructPostMakerRequest(postMakerRequest)
+		
+	log.Println(923)
 		roleCount := len(postMakerRequest.CheckerRoles)
 		return utility.BatchWriteToDynamoDB(roleCount, makerRequests, makerTableName, dynaClient)
 	}

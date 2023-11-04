@@ -203,6 +203,8 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 			if err != nil {
 				return nil, errors.New(ErrorFailedToFetchRecord)
 			}
+			
+	log.Println(523)
 			if len(users) > 0 {
 				for _, user := range users {
 					err := sendEmail(user.Email, req, dynaClient)
@@ -274,6 +276,7 @@ func FetchUsersByRoles(role string, req events.APIGatewayProxyRequest, tableName
 	log.Println(123)
 	result, err := dynaClient.Query(input)
 
+	log.Println(223)
 	if err != nil {
 		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
@@ -289,6 +292,7 @@ func FetchUsersByRoles(role string, req events.APIGatewayProxyRequest, tableName
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
 
+	log.Println(323)
 	if logErr := sendLogs(req, 1, 1, "maker", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}

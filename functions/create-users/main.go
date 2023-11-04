@@ -77,6 +77,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	//calling create user in dynamo func
 	res, err := CreateUser(request, USER_TABLE, dynaClient)
 	if err != nil {
+		log.Println(err.Error())
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
 			Body:       string("Error creating user account"),

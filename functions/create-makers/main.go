@@ -172,9 +172,7 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 			}
 			if len(users) > 0 {
 				for _, user := range users {
-					log.Println("user:", user)
-					err := sendEmail(user.Email)
-					log.Println(err)
+					sendEmail(user.Email)
 				}
 			}
 		}
@@ -370,16 +368,11 @@ func sendEmail(recipientEmail string) (error) {
 	// Compose the email message
 	subject := "[Auto-Generated] New Maker Request"
 	body := `
-		<!DOCTYPE html>
-		<html>
-		<head>
-			<title>New Maker Request</title>
-		</head>
-		<body>
-			<p>There is a new maker request in the Ascenda Admin Panel. Go to check it out now:</p>
-			<a href="https://itsag2t2.com/">https://itsag2t2.com/</a>
-		</body>
-		</html>
+		New Maker Request
+		
+		There is a new maker request in the Ascenda Admin Panel. Go to check it out now:
+		
+		https://itsag2t2.com/
 	`
 	// Send the email
 	_, err = svc.SendEmail(&ses.SendEmailInput{

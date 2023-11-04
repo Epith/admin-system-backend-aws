@@ -61,12 +61,6 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) events.APIGat
 		if err2 == nil {
 			//Check Roles Item if Role provides permission
 			authorised = slices.Contains(access.Access[route], method)
-			// for j := 0; j < len(access.); j++ {
-			// 	if access.Role.Endpoint == route {
-			// 		authorised = slices.Contains(access.Role[j].Endpoint.Method, method)
-			// 		break
-			// 	}
-			// }
 		}
 	}
 

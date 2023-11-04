@@ -1,8 +1,10 @@
 package main
 
 import (
+	"ascenda/functions/utility"
 	"encoding/json"
 	"errors"
+	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -17,33 +19,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/google/uuid"
 )
-
-type MakerRequest struct {
-	RequestUUID   string          `json:"req_id"`
-	CheckerRole   string          `json:"checker_role"`
-	MakerUUID     string          `json:"maker_id"`
-	CheckerUUID   string          `json:"checker_id"`
-	RequestStatus string          `json:"request_status"`
-	ResourceType  string          `json:"resource_type"`
-	RequestData   json.RawMessage `json:"request_data"`
-}
-
-type ReturnMakerRequest struct {
-	RequestUUID   string          `json:"req_id"`
-	CheckerRole   []string        `json:"checker_role"`
-	MakerUUID     string          `json:"maker_id"`
-	CheckerUUID   string          `json:"checker_id"`
-	RequestStatus string          `json:"request_status"`
-	ResourceType  string          `json:"resource_type"`
-	RequestData   json.RawMessage `json:"request_data"`
-}
-
-type NewMakerRequest struct {
-	CheckerRole  []string        `json:"checker_roles"`
-	MakerUUID    string          `json:"maker_id"`
-	ResourceType string          `json:"resource_type"`
-	RequestData  json.RawMessage `json:"request_data"`
-}
 
 type Log struct {
 	Log_ID          string      `json:"log_id"`
@@ -60,7 +35,8 @@ type Log struct {
 var (
 	ErrorFailedToFetchRecord   = "failed to fetch record"
 	ErrorCouldNotMarshalItem   = "could not marshal item"
-	ErrorMakerDoesNotExist     = "request.maker_id does not exist"
+	ErrorCouldNotQueryDB       = "could not query db"
+	ErrorMakerReqDoesNotExist  = "maker request id does not exist"
 	ErrorCouldNotDynamoPutItem = "could not dynamo put item"
 )
 
@@ -116,6 +92,16 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			StatusCode: 200,
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
+	} else if len(makerId) > 0 && len(status) == 0 {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Missing status query param"),
+		}, nil
+	} else if len(makerId) == 0 && len(status) > 0 {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Missing maker_id query param"),
+		}, nil
 	}
 	// get all
 	res, err := FetchMakerRequests(MAKER_TABLE, request, dynaClient)
@@ -135,7 +121,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]ReturnMakerRequest, error) {
+func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.ReturnMakerRequest, error) {
 	queryInput := &dynamodb.QueryInput{
 		TableName:              aws.String(tableName),
 		KeyConditionExpression: aws.String("req_id = :req_id"),
@@ -146,24 +132,30 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		return nil, err
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
 	if len(result.Items) == 0 {
-		return nil, errors.New(ErrorMakerDoesNotExist)
+		return nil, errors.New(ErrorMakerReqDoesNotExist)
 	}
 
-	makerRequests := new([]MakerRequest)
+	makerRequests := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorCouldNotMarshalItem)
 	}
 
-	return FormatMakerRequest(*makerRequests), nil
+	return utility.FormatMakerRequest(*makerRequests), nil
 
 }
 
-func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]ReturnMakerRequest, error) {
+func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.ReturnMakerRequest, error) {
 	input := &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
 		Limit:     aws.Int64(int64(3000)),
@@ -171,14 +163,23 @@ func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dyn
 
 	result, err := dynaClient.Scan(input)
 	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
-	item := new([]MakerRequest)
+	item := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
-	return FormatMakerRequest(*item), nil
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(utility.ErrorCouldNotUnmarshalItem)
+	}
+	return utility.FormatMakerRequest(*item), nil
 }
 
-func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]ReturnMakerRequest, error) {
+func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.ReturnMakerRequest, error) {
 	queryInput := &dynamodb.QueryInput{
 		TableName:              aws.String(tableName),
 		IndexName:              aws.String("maker_id-request_status-index"),
@@ -195,16 +196,22 @@ func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName stri
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		return nil, err
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
-	makerRequests := new([]MakerRequest)
+	makerRequests := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(utility.ErrorCouldNotUnmarshalItem)
 	}
 
-	return FormatMakerRequest(*makerRequests), nil
+	return utility.FormatMakerRequest(*makerRequests), nil
 }
 
 func main() {
@@ -256,83 +263,4 @@ func RemoveNewlineAndUnnecessaryWhitespace(body string) string {
 	body = strings.TrimSpace(body)
 
 	return body
-}
-
-func BatchWriteToDynamoDB(roleCount int, makerRequests []MakerRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) ([]ReturnMakerRequest, error) {
-	writeRequests := make([]*dynamodb.WriteRequest, roleCount)
-
-	for i, request := range makerRequests {
-		item, err := dynamodbattribute.MarshalMap(request)
-		if err != nil {
-			return nil, err
-		}
-
-		writeRequest := &dynamodb.WriteRequest{
-			PutRequest: &dynamodb.PutRequest{
-				Item: item,
-			},
-		}
-
-		writeRequests[i] = writeRequest
-	}
-
-	input := &dynamodb.BatchWriteItemInput{
-		RequestItems: map[string][]*dynamodb.WriteRequest{
-			tableName: writeRequests,
-		},
-	}
-	_, err := dynaClient.BatchWriteItem(input)
-
-	if err != nil {
-		return nil, errors.New(ErrorCouldNotDynamoPutItem)
-	}
-	return FormatMakerRequest(makerRequests), nil
-}
-
-func FormatMakerRequest(makerRequests []MakerRequest) []ReturnMakerRequest {
-	makerRequestsMap := make(map[string]ReturnMakerRequest)
-	for _, request := range makerRequests {
-		resRequest := makerRequestsMap[request.RequestUUID]
-		if resRequest.RequestUUID == "" {
-			makerRequestsMap[request.RequestUUID] = ReturnMakerRequest{
-				RequestUUID:   request.RequestUUID,
-				CheckerRole:   []string{request.CheckerRole},
-				MakerUUID:     request.MakerUUID,
-				CheckerUUID:   request.CheckerUUID,
-				RequestStatus: request.RequestStatus,
-				ResourceType:  request.ResourceType,
-				RequestData:   request.RequestData,
-			}
-		} else {
-			resRequest.CheckerRole = append(resRequest.CheckerRole, request.CheckerRole)
-			makerRequestsMap[request.RequestUUID] = resRequest
-		}
-	}
-	retRequests := make([]ReturnMakerRequest, 0, len(makerRequestsMap))
-	for _, value := range makerRequestsMap {
-		retRequests = append(retRequests, value)
-	}
-
-	return retRequests
-}
-
-func DeconstructPostMakerRequest(postMakerRequest NewMakerRequest) []MakerRequest {
-	roleCount := len(postMakerRequest.CheckerRole)
-	makerRequests := make([]MakerRequest, roleCount)
-	reqId := uuid.NewString()
-
-	for i := 0; i < roleCount; i++ {
-		var makerRequest MakerRequest
-
-		makerRequest.RequestUUID = reqId
-		makerRequest.RequestStatus = "pending"
-		makerRequest.CheckerUUID = ""
-		makerRequest.CheckerRole = postMakerRequest.CheckerRole[i]
-		makerRequest.MakerUUID = postMakerRequest.MakerUUID
-		makerRequest.ResourceType = postMakerRequest.ResourceType
-		makerRequest.RequestData = postMakerRequest.RequestData
-
-		makerRequests[i] = makerRequest
-	}
-	return makerRequests
 }

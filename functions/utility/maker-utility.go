@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
+	ErrorCouldNotDynamoPutItem = "could not dynamo put item"
+	ErrorCouldNotUnmarshalItem = "could not unmarshal maker request"
 )
 
 type MakerRequest struct {
@@ -35,7 +36,7 @@ type ReturnMakerRequest struct {
 }
 
 type NewMakerRequest struct {
-	CheckerRole  []string        `json:"checker_roles"`
+	CheckerRoles []string        `json:"checker_roles"`
 	MakerUUID    string          `json:"maker_id"`
 	ResourceType string          `json:"resource_type"`
 	RequestData  json.RawMessage `json:"request_data"`
@@ -47,7 +48,7 @@ func BatchWriteToDynamoDB(roleCount int, makerRequests []MakerRequest, tableName
 	for i, request := range makerRequests {
 		item, err := dynamodbattribute.MarshalMap(request)
 		if err != nil {
-			return nil, err
+			return nil, errors.New(ErrorCouldNotUnmarshalItem)
 		}
 
 		writeRequest := &dynamodb.WriteRequest{
@@ -100,7 +101,7 @@ func FormatMakerRequest(makerRequests []MakerRequest) []ReturnMakerRequest {
 }
 
 func DeconstructPostMakerRequest(postMakerRequest NewMakerRequest) []MakerRequest {
-	roleCount := len(postMakerRequest.CheckerRole)
+	roleCount := len(postMakerRequest.CheckerRoles)
 	makerRequests := make([]MakerRequest, roleCount)
 	reqId := uuid.NewString()
 
@@ -110,7 +111,7 @@ func DeconstructPostMakerRequest(postMakerRequest NewMakerRequest) []MakerReques
 		makerRequest.RequestUUID = reqId
 		makerRequest.RequestStatus = "pending"
 		makerRequest.CheckerUUID = ""
-		makerRequest.CheckerRole = postMakerRequest.CheckerRole[i]
+		makerRequest.CheckerRole = postMakerRequest.CheckerRoles[i]
 		makerRequest.MakerUUID = postMakerRequest.MakerUUID
 		makerRequest.ResourceType = postMakerRequest.ResourceType
 		makerRequest.RequestData = postMakerRequest.RequestData

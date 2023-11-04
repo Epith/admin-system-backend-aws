@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -34,6 +35,7 @@ type Log struct {
 
 var (
 	ErrorCouldNotMarshalItem = "could not marshal item"
+	ErrorCouldNotQueryDB     = "could not query db"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -56,8 +58,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	dynaClient := dynamodb.New(awsSession)
 
 	// filter by client role and maker request status
-	if len(status) > 0 {
-		res, err := FetchMakerRequestsByCheckerRoleAndStatus(role, status, MAKER_TABLE, dynaClient)
+	if len(role) > 0 && len(status) > 0 {
+		res, err := FetchMakerRequestsByCheckerRoleAndStatus(role, status, MAKER_TABLE, request, dynaClient)
 		if err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
@@ -77,7 +79,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func FetchMakerRequestsByCheckerRoleAndStatus(checker_role, requestStatus, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]utility.MakerRequest, error) {
+func FetchMakerRequestsByCheckerRoleAndStatus(checker_role, requestStatus, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) (*[]utility.MakerRequest, error) {
 	queryInput := &dynamodb.QueryInput{
 		TableName:              aws.String(tableName),
 		IndexName:              aws.String("checker_role-request_status-index"),
@@ -94,13 +96,19 @@ func FetchMakerRequestsByCheckerRoleAndStatus(checker_role, requestStatus, table
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		return nil, err
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
 	makerRequests := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(utility.ErrorCouldNotUnmarshalItem)
 	}
 
 	return makerRequests, nil

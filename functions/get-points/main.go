@@ -37,6 +37,12 @@ type Log struct {
 	Timestamp       time.Time   `json:"timestamp"`
 }
 
+type ReturnData struct {
+	Data     []UserPoint `json:"data"`
+	KeyUser  string      `json:"key_user"`
+	KeyPoint string      `json:"key_point"`
+}
+
 var (
 	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
 	ErrorFailedToFetchRecord     = "failed to fetch record"
@@ -138,13 +144,32 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 	return item, nil
 }
 
-func FetchUsersPoint(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]UserPoint, error) {
-	//getting all user points
+func FetchUsersPoint(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*ReturnData, error) {
+	//get all user points with pagination of limit 100
+	keyUser := req.QueryStringParameters["keyUser"]
+	keyPoint := req.QueryStringParameters["keyPoint"]
+	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
+
+	item := new([]UserPoint)
+	itemWithKey := new(ReturnData)
+
 	input := &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
+		Limit:     aws.Int64(int64(100)),
+	}
+
+	if len(keyUser) != 0 && len(keyPoint) != 0 {
+		lastEvaluatedKey["user_id"] = &dynamodb.AttributeValue{
+			S: aws.String(keyUser),
+		}
+		lastEvaluatedKey["points_id"] = &dynamodb.AttributeValue{
+			S: aws.String(keyPoint),
+		}
+		input.ExclusiveStartKey = lastEvaluatedKey
 	}
 
 	result, err := dynaClient.Scan(input)
+
 	if err != nil {
 		if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
@@ -152,24 +177,34 @@ func FetchUsersPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
 
-	item := new([]UserPoint)
 	for _, i := range result.Items {
-		userpoint := new(UserPoint)
-		err := dynamodbattribute.UnmarshalMap(i, userpoint)
+		userPoint := new(UserPoint)
+		err := dynamodbattribute.UnmarshalMap(i, userPoint)
 		if err != nil {
 			if logErr := sendLogs(req, 3, 1, "point", dynaClient, err); logErr != nil {
 				log.Println("Logging err :", logErr)
 			}
 			return nil, err
 		}
-		*item = append(*item, *userpoint)
+		*item = append(*item, *userPoint)
 	}
 
+	itemWithKey.Data = *item
+
+	if len(result.LastEvaluatedKey) == 0 {
+		if logErr := sendLogs(req, 1, 1, "point", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return itemWithKey, nil
+	}
+
+	itemWithKey.KeyUser = *result.LastEvaluatedKey["user_id"].S
+	itemWithKey.KeyPoint = *result.LastEvaluatedKey["points_id"].S
 	if logErr := sendLogs(req, 1, 1, "point", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
 
-	return item, nil
+	return itemWithKey, nil
 }
 
 func main() {

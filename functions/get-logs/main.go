@@ -31,6 +31,11 @@ type Log struct {
 	Timestamp       time.Time   `json:"timestamp"`
 }
 
+type ReturnData struct {
+	Data []Log  `json:"data"`
+	Key  string `json:"key"`
+}
+
 var (
 	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
 	ErrorFailedToFetchRecord     = "failed to fetch record"
@@ -129,52 +134,61 @@ func FetchLogByID(id string, req events.APIGatewayProxyRequest, tableName string
 	return item, nil
 }
 
-func FetchLogs(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]Log, error) {
-	//get all logs
+func FetchLogs(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*ReturnData, error) {
+	//get all logs with pagination of limit 100
+	key := req.QueryStringParameters["key"]
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
+
 	item := new([]Log)
+	itemWithKey := new(ReturnData)
 
 	input := &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
-		Limit:     aws.Int64(int64(3000)),
+		Limit:     aws.Int64(int64(100)),
 	}
 
-	for {
-
-		if len(lastEvaluatedKey) != 0 {
-			input.ExclusiveStartKey = lastEvaluatedKey
+	if len(key) != 0 {
+		lastEvaluatedKey["log_id"] = &dynamodb.AttributeValue{
+			S: aws.String(key),
 		}
+		input.ExclusiveStartKey = lastEvaluatedKey
+	}
 
-		result, err := dynaClient.Scan(input)
+	result, err := dynaClient.Scan(input)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "log", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(ErrorFailedToFetchRecord)
+	}
 
+	for _, i := range result.Items {
+		logItem := new(Log)
+		err := dynamodbattribute.UnmarshalMap(i, logItem)
 		if err != nil {
 			if logErr := sendLogs(req, 3, 1, "log", dynaClient, err); logErr != nil {
 				log.Println("Logging err :", logErr)
 			}
-			return nil, errors.New(ErrorFailedToFetchRecord)
+			return nil, err
 		}
-
-		for _, i := range result.Items {
-			logItem := new(Log)
-			err := dynamodbattribute.UnmarshalMap(i, logItem)
-			if err != nil {
-				if logErr := sendLogs(req, 3, 1, "log", dynaClient, err); logErr != nil {
-					log.Println("Logging err :", logErr)
-				}
-				return nil, err
-			}
-			*item = append(*item, *logItem)
-		}
-
-		if len(result.LastEvaluatedKey) == 0 {
-			if logErr := sendLogs(req, 1, 1, "log", dynaClient, err); logErr != nil {
-				log.Println("Logging err :", logErr)
-			}
-			return item, nil
-		}
-
-		lastEvaluatedKey = result.LastEvaluatedKey
+		*item = append(*item, *logItem)
 	}
+
+	itemWithKey.Data = *item
+
+	if len(result.LastEvaluatedKey) == 0 {
+		if logErr := sendLogs(req, 1, 1, "log", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return itemWithKey, nil
+	}
+
+	itemWithKey.Key = *result.LastEvaluatedKey["log_id"].S
+	if logErr := sendLogs(req, 1, 1, "log", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
+	}
+
+	return itemWithKey, nil
 }
 
 func main() {

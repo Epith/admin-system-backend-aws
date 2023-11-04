@@ -191,7 +191,7 @@ func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		return itemWithKey, nil
 	}
 
-	itemWithKey.Key = *result.LastEvaluatedKey["user_id"].S
+	//itemWithKey.Key = *result.LastEvaluatedKey["user_id"].S
 
 	return itemWithKey, nil
 

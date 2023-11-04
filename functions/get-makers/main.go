@@ -4,6 +4,7 @@ import (
 	"ascenda/functions/utility"
 	"encoding/json"
 	"errors"
+	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -131,6 +132,9 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
@@ -141,6 +145,9 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 	makerRequests := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorCouldNotMarshalItem)
 	}
 
@@ -156,10 +163,19 @@ func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dyn
 
 	result, err := dynaClient.Scan(input)
 	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
 	item := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
+	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(utility.ErrorCouldNotUnmarshalItem)
+	}
 	return utility.FormatMakerRequest(*item), nil
 }
 
@@ -180,13 +196,19 @@ func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName stri
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
 	makerRequests := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(utility.ErrorCouldNotUnmarshalItem)
 	}
 
 	return utility.FormatMakerRequest(*makerRequests), nil

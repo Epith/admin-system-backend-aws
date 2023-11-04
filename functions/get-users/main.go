@@ -143,7 +143,7 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 }
 
 func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*ReturnData, error) {
-	//get all users
+	//get all users with pagination of limit 100
 	key := req.QueryStringParameters["key"]
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
 
@@ -152,7 +152,7 @@ func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 
 	input := &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
-		Limit:     aws.Int64(int64(5)),
+		Limit:     aws.Int64(int64(100)),
 	}
 
 	if len(key) != 0 {
@@ -191,7 +191,10 @@ func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		return itemWithKey, nil
 	}
 
-	//itemWithKey.Key = *result.LastEvaluatedKey["user_id"].S
+	itemWithKey.Key = *result.LastEvaluatedKey["user_id"].S
+	if logErr := sendLogs(req, 1, 1, "user", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
+	}
 
 	return itemWithKey, nil
 

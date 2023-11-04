@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -37,6 +38,11 @@ type Log struct {
 	QueryParameters interface{} `json:"query_parameters"`
 	Error           interface{} `json:"error"`
 	Timestamp       time.Time   `json:"timestamp"`
+}
+
+type ReturnData struct {
+	Data []User `json:"data"`
+	Key  string `json:"key"`
 }
 
 var (
@@ -139,12 +145,13 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 
 func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]User, error) {
 	//get all users
+	//key := req.QueryStringParameters["key"]
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
 	item := new([]User)
 
 	input := &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
-		Limit:     aws.Int64(int64(3000)),
+		Limit:     aws.Int64(int64(500)),
 	}
 
 	for {
@@ -180,7 +187,7 @@ func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 			}
 			return item, nil
 		}
-
+		fmt.Println(result.LastEvaluatedKey)
 		lastEvaluatedKey = result.LastEvaluatedKey
 	}
 }

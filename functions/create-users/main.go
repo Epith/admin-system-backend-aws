@@ -179,6 +179,9 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 
 	_, createErr := cognitoClient.AdminCreateUser(createInput)
 	if createErr != nil {
+		if logErr := sendLogs(req, 3, 2, "user", dynaClient, createErr); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException)
 	}
 
@@ -191,6 +194,9 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 
 	_, passwdErr := cognitoClient.AdminSetUserPassword(passwdInput)
 	if passwdErr != nil {
+		if logErr := sendLogs(req, 3, 2, "user", dynaClient, passwdErr); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException)
 	}
 

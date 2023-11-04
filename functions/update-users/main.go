@@ -183,11 +183,14 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 			},
 		},
 		UserPoolId: aws.String("ap-southeast-1_TGeevv7bn"),
-		Username:   aws.String(user.User_ID),
+		Username:   aws.String(user.Email),
 	}
 
 	_, cognitoErr := cognitoClient.AdminUpdateUserAttributes(cognitoInput)
 	if cognitoErr != nil {
+		if logErr := sendLogs(req, 3, 3, "user", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
 		return nil, errors.New(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException)
 	}
 

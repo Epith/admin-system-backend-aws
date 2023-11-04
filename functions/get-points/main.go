@@ -39,8 +39,9 @@ type Log struct {
 }
 
 type ReturnData struct {
-	Data []UserPoint `json:"data"`
-	Key  string      `json:"key"`
+	Data     []UserPoint `json:"data"`
+	KeyUser  string      `json:"key_user"`
+	KeyPoint string      `json:"key_point"`
 }
 
 var (
@@ -146,7 +147,8 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 
 func FetchUsersPoint(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*ReturnData, error) {
 	//get all user points with pagination of limit 100
-	key := req.QueryStringParameters["key"]
+	keyUser := req.QueryStringParameters["keyUser"]
+	keyPoint := req.QueryStringParameters["keyPoint"]
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
 
 	item := new([]UserPoint)
@@ -157,9 +159,12 @@ func FetchUsersPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 		Limit:     aws.Int64(int64(100)),
 	}
 
-	if len(key) != 0 {
+	if len(keyUser) != 0 && len(keyPoint) != 0 {
 		lastEvaluatedKey["user_id"] = &dynamodb.AttributeValue{
-			S: aws.String(key),
+			S: aws.String(keyUser),
+		}
+		lastEvaluatedKey["points_id"] = &dynamodb.AttributeValue{
+			S: aws.String(keyPoint),
 		}
 		input.ExclusiveStartKey = lastEvaluatedKey
 	}
@@ -194,7 +199,8 @@ func FetchUsersPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 		return itemWithKey, nil
 	}
 
-	itemWithKey.Key = *result.LastEvaluatedKey["user_id"].S
+	itemWithKey.KeyUser = *result.LastEvaluatedKey["user_id"].S
+	itemWithKey.KeyPoint = *result.LastEvaluatedKey["points_id"].S
 	if logErr := sendLogs(req, 1, 1, "point", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}

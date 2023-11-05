@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
@@ -19,12 +20,12 @@ var (
 	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
 )
 
-type User struct {
-	Email     string `json:"email"`
-	User_ID   string `json:"user_id"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Role      string `json:"role"`
+type Attributes struct {
+	User_ID        string `json:"Username"`
+	UserAttributes []struct {
+		Name  string `json:"Name"`
+		Value string `json:"Value"`
+	} `json:"UserAttributes"`
 }
 
 type Role struct {
@@ -35,8 +36,7 @@ type Role struct {
 func handler(request events.APIGatewayV2CustomAuthorizerV2Request) events.APIGatewayV2CustomAuthorizerSimpleResponse {
 
 	authorised := false
-	role := request.Headers["Role"]
-	id := request.IdentitySource[0]
+	accessToken := request.Cookies[2]
 	route := request.RouteKey
 	method := request.RequestContext.HTTP.Method
 	region := os.Getenv("AWS_REGION")
@@ -50,12 +50,12 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) events.APIGat
 	}
 
 	dynaClient := dynamodb.New(awsSession)
-	USER_TABLE := os.Getenv("USER_TABLE")
+	cognitoClient := cognitoidentityprovider.New(awsSession)
 	ROLE_TABLE := os.Getenv("ROLES_TABLE")
 
 	//Check User Table if role exist?
-	item, err := FetchUserByID(id, USER_TABLE, dynaClient)
-	if err == nil && role == item.Role {
+	role, err := FetchUserAttributes(accessToken, cognitoClient)
+	if err == nil {
 		// Get list of access of Role
 		access, err2 := GetAccessByRole(role, ROLE_TABLE, dynaClient)
 		if err2 == nil {
@@ -69,27 +69,25 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) events.APIGat
 	}
 }
 
-func FetchUserByID(id, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
-	input := &dynamodb.GetItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			"user_id": {
-				S: aws.String(id),
-			},
-		},
-		TableName: aws.String(tableName),
+func FetchUserAttributes(accessToken string, cognitoClient *cognitoidentityprovider.CognitoIdentityProvider) (string, error) {
+	input := &cognitoidentityprovider.GetUserInput{
+		AccessToken: &accessToken,
 	}
 
-	result, err := dynaClient.GetItem(input)
+	result, err := cognitoClient.GetUser(input)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecordID)
+		return "", errors.New(ErrorFailedToFetchRecordID)
 	}
 
-	item := new(User)
-	err = dynamodbattribute.UnmarshalMap(result.Item, item)
-	if err != nil {
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
+	var role string
+	for i := 0; i < len(result.UserAttributes); i++ {
+		if *result.UserAttributes[i].Name == "custom:role" {
+			role = *result.UserAttributes[i].Value
+			break
+		}
 	}
-	return item, nil
+
+	return role, nil
 }
 
 func GetAccessByRole(role, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*Role, error) {

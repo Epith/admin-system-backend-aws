@@ -182,8 +182,8 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 				Value: aws.String(user.Role),
 			},
 		},
-		UserPoolId: aws.String("ap-southeast-1_TGeevv7bn"),
-		Username:   aws.String(user.Email),
+		UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
+		Username:   aws.String(id),
 	}
 
 	_, cognitoErr := cognitoClient.AdminUpdateUserAttributes(cognitoInput)

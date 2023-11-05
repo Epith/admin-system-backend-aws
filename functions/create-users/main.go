@@ -159,11 +159,15 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		DesiredDeliveryMediums: []*string{
 			aws.String("EMAIL"),
 		},
-		MessageAction: aws.String("SUPPRESS"),
+		ForceAliasCreation: aws.Bool(true),
 		UserAttributes: []*cognitoidentityprovider.AttributeType{
 			{
 				Name:  aws.String("name"),
 				Value: aws.String(user.FirstName + user.LastName),
+			},
+			{
+				Name:  aws.String("email_verified"),
+				Value: aws.String("True"),
 			},
 			{
 				Name:  aws.String("email"),
@@ -174,7 +178,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 				Value: aws.String(user.Role),
 			},
 		},
-		UserPoolId: aws.String("ap-southeast-1_MwUYADE19"),
+		UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
 		Username:   aws.String(user.User_ID),
 	}
 
@@ -191,7 +195,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		Password:   aws.String(user.Password),
 		Permanent:  aws.Bool(true),
 		Username:   aws.String(user.User_ID),
-		UserPoolId: aws.String("ap-southeast-1_MwUYADE19"),
+		UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
 	}
 
 	_, passwdErr := cognitoClient.AdminSetUserPassword(passwdInput)

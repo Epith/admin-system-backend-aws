@@ -125,8 +125,8 @@ func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, table
 
 	//attempt to delete user in cognito
 	cognitoInput := &cognitoidentityprovider.AdminDeleteUserInput{
-		Username:   aws.String(user.Email),
-		UserPoolId: aws.String("ap-southeast-1_TGeevv7bn"),
+		Username:   aws.String(id),
+		UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
 	}
 
 	_, cognitoErr := cognitoClient.AdminDeleteUser(cognitoInput)

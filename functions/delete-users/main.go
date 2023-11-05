@@ -19,6 +19,14 @@ import (
 	"github.com/google/uuid"
 )
 
+type User struct {
+	Email     string `json:"email"`
+	User_ID   string `json:"user_id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Role      string `json:"role"`
+}
+
 type Log struct {
 	Log_ID          string      `json:"log_id"`
 	Severity        int         `json:"severity"`
@@ -36,6 +44,7 @@ var (
 	ErrorCouldNotDeleteItem    = "could not delete item"
 	ErrorUserDoesNotExist      = "user does not exist"
 	ErrorFailedToFetchRecordID = "failed to fetch record by user id"
+	ErrorFailedToUnmarshal     = "failed to unmarshal record from db"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -101,13 +110,22 @@ func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, table
 		return errors.New(ErrorFailedToFetchRecordID)
 	}
 
+	var user User
 	if result.Item == nil {
 		return errors.New(ErrorUserDoesNotExist)
+	} else {
+		err = dynamodbattribute.UnmarshalMap(result.Item, &user)
+		if err != nil {
+			if logErr := sendLogs(req, 2, 2, "user", dynaClient, err); logErr != nil {
+				log.Println("Logging err :", logErr)
+			}
+			return errors.New(ErrorFailedToUnmarshal)
+		}
 	}
 
 	//attempt to delete user in cognito
 	cognitoInput := &cognitoidentityprovider.AdminDeleteUserInput{
-		Username:   aws.String(id),
+		Username:   aws.String(user.Email),
 		UserPoolId: aws.String("ap-southeast-1_TGeevv7bn"),
 	}
 

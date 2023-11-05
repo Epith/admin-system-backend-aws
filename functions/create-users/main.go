@@ -100,6 +100,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 
 	//marshal body into user
 	if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
+		log.Println(err)
 		err = errors.New(ErrorInvalidUserData)
 		if logErr := sendLogs(req, 2, 2, "user", dynaClient, err); logErr != nil {
 			log.Println("Logging err :", logErr)
@@ -174,11 +175,12 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 			},
 		},
 		UserPoolId: aws.String("ap-southeast-1_TGeevv7bn"),
-		Username:   aws.String(user.User_ID),
+		Username:   aws.String(user.Email),
 	}
 
 	_, createErr := cognitoClient.AdminCreateUser(createInput)
 	if createErr != nil {
+		log.Println(createErr)
 		if logErr := sendLogs(req, 3, 2, "user", dynaClient, createErr); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}
@@ -188,12 +190,13 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	passwdInput := &cognitoidentityprovider.AdminSetUserPasswordInput{
 		Password:   aws.String(user.Password),
 		Permanent:  aws.Bool(true),
-		Username:   aws.String(user.User_ID),
+		Username:   aws.String(user.Email),
 		UserPoolId: aws.String("ap-southeast-1_TGeevv7bn"),
 	}
 
 	_, passwdErr := cognitoClient.AdminSetUserPassword(passwdInput)
 	if passwdErr != nil {
+		log.Println(passwdErr)
 		if logErr := sendLogs(req, 3, 2, "user", dynaClient, passwdErr); logErr != nil {
 			log.Println("Logging err :", logErr)
 		}

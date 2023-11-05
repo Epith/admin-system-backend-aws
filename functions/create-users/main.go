@@ -156,7 +156,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	if logErr := sendLogs(req, 1, 2, "user", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
-	// EmailVerification(user.Email)
+	EmailVerification(user.Email)
 	return &user, nil
 }
 

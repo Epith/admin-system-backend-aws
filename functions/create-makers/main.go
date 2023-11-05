@@ -281,6 +281,24 @@ func sendEmail(recipientEmail string, req events.APIGatewayProxyRequest, dynaCli
 	}
 
 	svc := ses.New(sess)
+	// Check if the recipient's email is verified
+	verifyParams := &ses.GetIdentityVerificationAttributesInput{
+		Identities: []*string{aws.String(recipientEmail)},
+	}
+
+	verifyResult, verifyErr := svc.GetIdentityVerificationAttributes(verifyParams)
+	if verifyErr != nil {
+		log.Println("Failed to verify recipient email:", verifyErr)
+		// You can handle the verification error as needed
+		return verifyErr
+	}
+
+	verification, exists := verifyResult.VerificationAttributes[recipientEmail]
+	if !exists || *verification.VerificationStatus != "Success" {
+		log.Printf("Recipient email (%s) is not verified. Skipping email.", recipientEmail)
+		// You can choose to log, return an error, or handle it in your application logic
+		return nil // Skip sending the email
+	}
 
 	// Compose the email message
 	subject := "[Auto-Generated] New Maker Request"

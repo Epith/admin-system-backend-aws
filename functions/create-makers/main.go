@@ -285,15 +285,14 @@ func sendEmail(recipientEmail string, req events.APIGatewayProxyRequest, dynaCli
 	verifyParams := &ses.GetIdentityVerificationAttributesInput{
 		Identities: []*string{aws.String(recipientEmail)},
 	}
-log.Println(123)
+	
 	verifyResult, verifyErr := svc.GetIdentityVerificationAttributes(verifyParams)
 	if verifyErr != nil {
 		log.Println("Failed to verify recipient email:", verifyErr)
 		// You can handle the verification error as needed
 		return verifyErr
 	}
-	log.Println("verifyResult:", verifyResult)
-	log.Println("verifyErr:", verifyErr)
+	
 	verification, exists := verifyResult.VerificationAttributes[recipientEmail]
 	if !exists || *verification.VerificationStatus != "Success" {
 		log.Printf("Recipient email (%s) is not verified. Skipping email.", recipientEmail)
@@ -310,7 +309,7 @@ log.Println(123)
 		
 		https://itsag2t2.com/
 	`
-	log.Println(5555)
+	
 	// Send the email
 	_, err = svc.SendEmail(&ses.SendEmailInput{
 		Destination: &ses.Destination{
@@ -328,7 +327,7 @@ log.Println(123)
 		},
 		Source: aws.String(senderEmail),
 	})
-log.Println(777)
+	
 	if err != nil {
 		log.Printf("Failed to send email: %v", err)
 		return err

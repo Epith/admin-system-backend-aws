@@ -174,8 +174,8 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 				Value: aws.String(user.Role),
 			},
 		},
-		UserPoolId: aws.String("ap-southeast-1_TGeevv7bn"),
-		Username:   aws.String(user.Email),
+		UserPoolId: aws.String("ap-southeast-1_MwUYADE19"),
+		Username:   aws.String(user.User_ID),
 	}
 
 	_, createErr := cognitoClient.AdminCreateUser(createInput)
@@ -190,8 +190,8 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	passwdInput := &cognitoidentityprovider.AdminSetUserPasswordInput{
 		Password:   aws.String(user.Password),
 		Permanent:  aws.Bool(true),
-		Username:   aws.String(user.Email),
-		UserPoolId: aws.String("ap-southeast-1_TGeevv7bn"),
+		Username:   aws.String(user.User_ID),
+		UserPoolId: aws.String("ap-southeast-1_MwUYADE19"),
 	}
 
 	_, passwdErr := cognitoClient.AdminSetUserPassword(passwdInput)

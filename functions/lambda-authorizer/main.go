@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
@@ -112,4 +113,8 @@ func GetAccessByRole(role, tableName string, dynaClient dynamodbiface.DynamoDBAP
 	}
 
 	return item, nil
+}
+
+func main() {
+	lambda.Start(handler)
 }

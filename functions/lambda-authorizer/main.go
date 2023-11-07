@@ -2,8 +2,10 @@ package main
 
 import (
 	"errors"
+	"log"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -37,7 +39,7 @@ type Role struct {
 func handler(request events.APIGatewayV2CustomAuthorizerV2Request) events.APIGatewayV2CustomAuthorizerSimpleResponse {
 
 	authorised := false
-	accessToken := request.Cookies[2]
+	accessToken := strings.Split(request.Cookies[2], "=")
 	route := request.RouteKey
 	method := request.RequestContext.HTTP.Method
 	region := os.Getenv("AWS_REGION")
@@ -55,7 +57,7 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) events.APIGat
 	ROLE_TABLE := os.Getenv("ROLES_TABLE")
 
 	//Check User Table if role exist?
-	role, err := FetchUserAttributes(accessToken, cognitoClient)
+	role, err := FetchUserAttributes(accessToken[2], cognitoClient)
 	if err == nil {
 		// Get list of access of Role
 		access, err2 := GetAccessByRole(role, ROLE_TABLE, dynaClient)
@@ -77,6 +79,7 @@ func FetchUserAttributes(accessToken string, cognitoClient *cognitoidentityprovi
 
 	result, err := cognitoClient.GetUser(input)
 	if err != nil {
+		log.Println(err)
 		return "", errors.New(ErrorFailedToFetchRecordID)
 	}
 

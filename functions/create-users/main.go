@@ -27,7 +27,11 @@ type User struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Role      string `json:"role"`
-	Password  string `json:"password"`
+}
+
+type cognitoUser struct {
+	*User
+	Password string `json:"password"`
 }
 
 type Log struct {
@@ -76,6 +80,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 	dynaClient := dynamodb.New(awsSession)
 	cognitoClient := cognitoidentityprovider.New(awsSession)
+	log.Println(*cognitoClient.Config.Region)
+	log.Println(region)
 
 	res, err := CreateUser(request, USER_TABLE, dynaClient, cognitoClient)
 	if err != nil {
@@ -97,7 +103,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	*User,
 	error,
 ) {
-	var user User
+	var user cognitoUser
 
 	//marshal body into user
 	if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
@@ -134,7 +140,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	user.User_ID = uuid.NewString()
 
 	//putting user into dynamo
-	av, err := dynamodbattribute.MarshalMap(user)
+	av, err := dynamodbattribute.MarshalMap(user.User)
 
 	if err != nil {
 		if logErr := sendLogs(req, 3, 2, "user", dynaClient, err); logErr != nil {
@@ -167,6 +173,10 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 				Value: aws.String(user.FirstName + user.LastName),
 			},
 			{
+				Name:  aws.String("given_name"),
+				Value: aws.String(user.User_ID),
+			},
+			{
 				Name:  aws.String("email_verified"),
 				Value: aws.String("True"),
 			},
@@ -182,6 +192,31 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
 		Username:   aws.String(user.User_ID),
 	}
+
+	// clientID := "78b21qq73tibh22ojf2rg7um32"
+	// createInput := &cognitoidentityprovider.SignUpInput{
+	// 	ClientId: &clientID,
+	// 	Password: &user.Password,
+	// 	UserAttributes: []*cognitoidentityprovider.AttributeType{
+	// 		{
+	// 			Name:  aws.String("name"),
+	// 			Value: aws.String(user.FirstName + user.LastName),
+	// 		},
+	// 		// {
+	// 		// 	Name:  aws.String("email_verified"),
+	// 		// 	Value: aws.String("True"),
+	// 		// },
+	// 		{
+	// 			Name:  aws.String("email"),
+	// 			Value: aws.String(user.Email),
+	// 		},
+	// 		{
+	// 			Name:  aws.String("custom:role"),
+	// 			Value: aws.String(user.Role),
+	// 		},
+	// 	},
+	// 	Username: aws.String(user.User_ID),
+	// }
 
 	_, createErr := cognitoClient.AdminCreateUser(createInput)
 	if createErr != nil {
@@ -212,7 +247,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		log.Println("Logging err :", logErr)
 	}
 	EmailVerification(user.Email)
-	return &user, nil
+	return user.User, nil
 }
 
 func main() {

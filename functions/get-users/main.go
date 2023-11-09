@@ -3,11 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"os"
-	"regexp"
-	"strings"
-	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -16,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"github.com/google/uuid"
 )
 
 type User struct {
@@ -25,18 +20,6 @@ type User struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Role      string `json:"role"`
-}
-
-type Log struct {
-	Log_ID          string      `json:"log_id"`
-	Severity        int         `json:"severity"`
-	User_ID         string      `json:"user_id"`
-	Action_Type     int         `json:"action_type"`
-	Resource_Type   string      `json:"resource_type"`
-	Body            interface{} `json:"body"`
-	QueryParameters interface{} `json:"query_parameters"`
-	Error           interface{} `json:"error"`
-	Timestamp       time.Time   `json:"timestamp"`
 }
 
 type ReturnData struct {
@@ -117,9 +100,6 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 
 	result, err := dynaClient.GetItem(input)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
 
@@ -130,15 +110,9 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 	item := new(User)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
 
-	if logErr := sendLogs(req, 1, 1, "user", dynaClient, err); logErr != nil {
-		log.Println("Logging err :", logErr)
-	}
 	return item, nil
 }
 
@@ -164,9 +138,6 @@ func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 
 	result, err := dynaClient.Scan(input)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
 
@@ -174,9 +145,6 @@ func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		user := new(User)
 		err := dynamodbattribute.UnmarshalMap(i, user)
 		if err != nil {
-			if logErr := sendLogs(req, 3, 1, "user", dynaClient, err); logErr != nil {
-				log.Println("Logging err :", logErr)
-			}
 			return nil, err
 		}
 		*item = append(*item, *user)
@@ -185,16 +153,10 @@ func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	itemWithKey.Data = *item
 
 	if len(result.LastEvaluatedKey) == 0 {
-		if logErr := sendLogs(req, 1, 1, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return itemWithKey, nil
 	}
 
 	itemWithKey.Key = *result.LastEvaluatedKey["user_id"].S
-	if logErr := sendLogs(req, 1, 1, "user", dynaClient, err); logErr != nil {
-		log.Println("Logging err :", logErr)
-	}
 
 	return itemWithKey, nil
 
@@ -202,51 +164,4 @@ func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 
 func main() {
 	lambda.Start(handler)
-}
-
-func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resource string, dynaClient dynamodbiface.DynamoDBAPI, err error) error {
-	LOGS_TABLE := os.Getenv("LOGS_TABLE")
-	//create log struct
-	log := Log{}
-	log.Body = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
-	log.QueryParameters = req.QueryStringParameters
-	log.Error = err
-	log.Log_ID = uuid.NewString()
-	log.Severity = severity
-	log.User_ID = req.RequestContext.Identity.User
-	log.Action_Type = action
-	log.Resource_Type = resource
-	log.Timestamp = time.Now().UTC()
-
-	av, err := dynamodbattribute.MarshalMap(log)
-
-	if err != nil {
-		return errors.New("failed to marshal log")
-	}
-
-	input := &dynamodb.PutItemInput{
-		Item:      av,
-		TableName: aws.String(LOGS_TABLE),
-	}
-	_, err = dynaClient.PutItem(input)
-	if err != nil {
-		return errors.New("Could not dynamo put")
-	}
-	return nil
-}
-
-func RemoveNewlineAndUnnecessaryWhitespace(body string) string {
-	// Remove newline characters
-	body = regexp.MustCompile(`\n|\r`).ReplaceAllString(body, "")
-
-	// Remove unnecessary whitespace
-	body = regexp.MustCompile(`\s{2,}|\t`).ReplaceAllString(body, " ")
-
-	// Remove the character `\"`
-	body = regexp.MustCompile(`\"`).ReplaceAllString(body, "")
-
-	// Trim the body
-	body = strings.TrimSpace(body)
-
-	return body
 }

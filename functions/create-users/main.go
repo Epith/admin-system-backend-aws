@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/google/uuid"
 )
 
@@ -210,7 +211,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	if logErr := sendLogs(req, 1, 2, "user", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
-
+	EmailVerification(user.Email)
 	return &user, nil
 }
 
@@ -273,4 +274,28 @@ func RemoveNewlineAndUnnecessaryWhitespace(body string) string {
 	body = strings.TrimSpace(body)
 
 	return body
+}
+
+func EmailVerification(emailAddress string) error {
+	// Create an SES session
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String("ap-southeast-1"), // Replace with your desired AWS region
+	})
+	if err != nil {
+		log.Println("Failed to create AWS session", err)
+		return err
+	}
+
+	sesClient := ses.New(sess)
+	_, err = sesClient.VerifyEmailIdentity(&ses.VerifyEmailIdentityInput{
+		EmailAddress: aws.String(emailAddress),
+	})
+
+	if err != nil {
+		log.Println("Failed to verify email identity", err)
+		return err
+	} else {
+		log.Println("Verification request sent to", emailAddress)
+		return nil
+	}
 }

@@ -4,11 +4,7 @@ import (
 	"ascenda/functions/utility"
 	"encoding/json"
 	"errors"
-	"log"
 	"os"
-	"regexp"
-	"strings"
-	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -17,20 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"github.com/google/uuid"
 )
-
-type Log struct {
-	Log_ID          string      `json:"log_id"`
-	Severity        int         `json:"severity"`
-	User_ID         string      `json:"user_id"`
-	Action_Type     int         `json:"action_type"`
-	Resource_Type   string      `json:"resource_type"`
-	Body            interface{} `json:"body"`
-	QueryParameters interface{} `json:"query_parameters"`
-	Error           interface{} `json:"error"`
-	Timestamp       time.Time   `json:"timestamp"`
-}
 
 var (
 	ErrorFailedToFetchRecord   = "failed to fetch record"
@@ -132,9 +115,6 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
@@ -145,9 +125,6 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 	makerRequests := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(ErrorCouldNotMarshalItem)
 	}
 
@@ -155,28 +132,51 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 
 }
 
-func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.ReturnMakerRequest, error) {
+func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) (*utility.ReturnData, error) {
+	//get all user points with pagination of limit 100
+	keyReq := req.QueryStringParameters["keyReq"]
+	keyRole := req.QueryStringParameters["keyRole"]
+	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
+
 	input := &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
-		Limit:     aws.Int64(int64(3000)),
+		Limit:     aws.Int64(int64(100)),
+	}
+
+	if len(keyReq) != 0 && len(keyRole) != 0 {
+		lastEvaluatedKey["req_id"] = &dynamodb.AttributeValue{
+			S: aws.String(keyReq),
+		}
+		lastEvaluatedKey["checker_role"] = &dynamodb.AttributeValue{
+			S: aws.String(keyRole),
+		}
+		input.ExclusiveStartKey = lastEvaluatedKey
 	}
 
 	result, err := dynaClient.Scan(input)
+
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
 	item := new([]utility.MakerRequest)
+
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(utility.ErrorCouldNotUnmarshalItem)
 	}
-	return utility.FormatMakerRequest(*item), nil
+
+	itemWithKey := new(utility.ReturnData)
+	formattedMakerRequests := utility.FormatMakerRequest(*item)
+	itemWithKey.Data = formattedMakerRequests
+
+	if len(result.LastEvaluatedKey) == 0 {
+		return itemWithKey, nil
+	}
+
+	itemWithKey.KeyReq = *result.LastEvaluatedKey["req_id"].S
+	itemWithKey.KeyRole = *result.LastEvaluatedKey["checker_role"].S
+
+	return itemWithKey, nil
 }
 
 func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.ReturnMakerRequest, error) {
@@ -196,18 +196,12 @@ func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName stri
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
 	makerRequests := new([]utility.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 1, "maker", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(utility.ErrorCouldNotUnmarshalItem)
 	}
 
@@ -216,51 +210,4 @@ func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName stri
 
 func main() {
 	lambda.Start(handler)
-}
-
-func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resource string, dynaClient dynamodbiface.DynamoDBAPI, err error) error {
-	LOGS_TABLE := os.Getenv("LOGS_TABLE")
-	//create log struct
-	log := Log{}
-	log.Body = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
-	log.QueryParameters = req.QueryStringParameters
-	log.Error = err
-	log.Log_ID = uuid.NewString()
-	log.Severity = severity
-	log.User_ID = req.RequestContext.Identity.User
-	log.Action_Type = action
-	log.Resource_Type = resource
-	log.Timestamp = time.Now().UTC()
-
-	av, err := dynamodbattribute.MarshalMap(log)
-
-	if err != nil {
-		return errors.New("failed to marshal log")
-	}
-
-	input := &dynamodb.PutItemInput{
-		Item:      av,
-		TableName: aws.String(LOGS_TABLE),
-	}
-	_, err = dynaClient.PutItem(input)
-	if err != nil {
-		return errors.New("Could not dynamo put")
-	}
-	return nil
-}
-
-func RemoveNewlineAndUnnecessaryWhitespace(body string) string {
-	// Remove newline characters
-	body = regexp.MustCompile(`\n|\r`).ReplaceAllString(body, "")
-
-	// Remove unnecessary whitespace
-	body = regexp.MustCompile(`\s{2,}|\t`).ReplaceAllString(body, " ")
-
-	// Remove the character `\"`
-	body = regexp.MustCompile(`\"`).ReplaceAllString(body, "")
-
-	// Trim the body
-	body = strings.TrimSpace(body)
-
-	return body
 }

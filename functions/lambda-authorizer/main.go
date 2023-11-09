@@ -37,7 +37,7 @@ type Role struct {
 }
 
 func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGatewayV2CustomAuthorizerSimpleResponse, error) {
-
+	log.Println("start of handler")
 	authorised := false
 	// tokenCookie := ""
 	// for i := 0; i < len(request.Cookies); i++ {
@@ -132,5 +132,6 @@ func GetAccessByRole(role, tableName string, dynaClient dynamodbiface.DynamoDBAP
 }
 
 func main() {
+	log.Println("start of main")
 	lambda.Start(handler)
 }

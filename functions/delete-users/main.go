@@ -12,11 +12,20 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/google/uuid"
 )
+
+type User struct {
+	Email     string `json:"email"`
+	User_ID   string `json:"user_id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Role      string `json:"role"`
+}
 
 type Log struct {
 	Log_ID          string      `json:"log_id"`
@@ -35,11 +44,13 @@ var (
 	ErrorCouldNotDeleteItem    = "could not delete item"
 	ErrorUserDoesNotExist      = "user does not exist"
 	ErrorFailedToFetchRecordID = "failed to fetch record by user id"
+	ErrorFailedToUnmarshal     = "failed to unmarshal record from db"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//getting variables
 	id := request.QueryStringParameters["id"]
+	role := request.QueryStringParameters["role"]
 	region := os.Getenv("AWS_REGION")
 	USER_TABLE := os.Getenv("USER_TABLE")
 
@@ -54,10 +65,10 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
+	cognitoClient := cognitoidentityprovider.New(awsSession)
 
-	//check if id is supplied, if yes call delete user dynamo func
 	if len(id) > 0 {
-		res := DeleteUser(id, request, USER_TABLE, dynaClient)
+		res := DeleteUser(id, role, request, USER_TABLE, dynaClient, cognitoClient)
 		if res != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
@@ -80,7 +91,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func DeleteUser(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) error {
+func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI, cognitoClient *cognitoidentityprovider.CognitoIdentityProvider) error {
 	//check if user exist
 	checkUser := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
@@ -99,8 +110,28 @@ func DeleteUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 		return errors.New(ErrorFailedToFetchRecordID)
 	}
 
+	var user User
 	if result.Item == nil {
 		return errors.New(ErrorUserDoesNotExist)
+	} else {
+		err = dynamodbattribute.UnmarshalMap(result.Item, &user)
+		if err != nil {
+			if logErr := sendLogs(req, 2, 2, "user", dynaClient, err); logErr != nil {
+				log.Println("Logging err :", logErr)
+			}
+			return errors.New(ErrorFailedToUnmarshal)
+		}
+	}
+
+	//attempt to delete user in cognito
+	cognitoInput := &cognitoidentityprovider.AdminDeleteUserInput{
+		Username:   aws.String(id),
+		UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
+	}
+
+	_, cognitoErr := cognitoClient.AdminDeleteUser(cognitoInput)
+	if cognitoErr != nil {
+		return errors.New(cognitoidentityprovider.ErrCodeInternalErrorException)
 	}
 
 	//attempt to delete user in dynamo

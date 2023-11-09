@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -165,13 +166,13 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	log.TTL = ttl.Seconds()
 	log.Description = "test description"
 	log.Timestamp = time.Now().UTC()
-
+	fmt.Println(log)
 	av, err := dynamodbattribute.MarshalMap(log)
 
 	if err != nil {
 		return errors.New("failed to marshal log")
 	}
-
+	fmt.Println(av)
 	input := &dynamodb.PutItemInput{
 		Item:      av,
 		TableName: aws.String(LOGS_TABLE),

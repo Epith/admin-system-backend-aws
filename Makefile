@@ -1,6 +1,7 @@
 STACK_NAME ?= ascenda-serverless
-FUNCTIONS := get-users get-points get-logs get-roles get-makers get-checkers create-users create-points create-roles create-makers update-points update-users update-roles update-checkers delete-users delete-roles
+FUNCTIONS := get-users get-points get-logs get-roles get-makers get-checkers create-users create-points create-roles create-makers update-points update-users update-roles update-checkers delete-users delete-roles lambda-authorizer
 GO := go
+REGION := ap-southeast-1
 
 build:
 	${MAKE} ${MAKEOPTS} $(foreach function,${FUNCTIONS}, build-${function})

@@ -19,17 +19,43 @@ Resources:
       StageName: Prod
       CorsConfiguration:
         AllowMethods: ['GET', 'POST', 'PUT', 'DELETE']
-        # AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key', 'X-Amz-Security-Token']
         AllowOrigins: ['*']
-      # Auth:
-      #   DefaultAuthorizer: lambda-authorizer
-      #   AddDefaultAuthorizerToCorsPreflight: false
+      Auth:
+        DefaultAuthorizer: Lambda-Authorizer
+        Authorizers:
+          Lambda-Authorizer:
+            AuthorizerPayloadFormatVersion: 2.0
+            FunctionArn: !GetAtt LambdaAuthorizer.Arn
+            Identity:
+              Headers:
+                - Authorization
+              ReauthorizeEvery: 300
+            EnableSimpleResponses: true
       Domain:
         DomainName: itsag2t2.com
         CertificateArn: arn:aws:acm:ap-southeast-1:163683790602:certificate/17266c11-0d22-4f17-b63f-92e2227151c1
         Route53:
           HostedZoneId: Z01378052RMMURP5MHP9D
           EvaluateTargetHealth: false
+
+  # WebACLAssociation:
+  #   Type: AWS::WAFv2::WebACLAssociation
+  #   Properties:
+  #     ResourceArn: !Ref AscendaApi
+  #     WebACLArn: arn:aws:wafv2:ap-southeast-1:163683790602:regional/webacl/AscendaWebACL/0e1a3b1a-5b1a-4b6e-9b9e-3b0b4b5b4b5b
+
+  LambdaAuthorizer:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/lambda-authorizer/
+      Handler: bootstrap
+      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Environment:
+        Variables:
+          ROLES_TABLE: roles
+    Metadata:
+      BuildMethod: makefile
 
   GetMakerFunction:
     Type: AWS::Serverless::Function
@@ -68,6 +94,8 @@ Resources:
             POINTS_TABLE: points
             MAKER_TABLE: makers
             LOGS_TABLE: logs
+      Policies:
+        - arn:aws:iam::163683790602:policy/SESEmailActionsPolicy
     Metadata:
       BuildMethod: makefile
 
@@ -204,6 +232,9 @@ Resources:
         Variables:
             USER_TABLE: users
             LOGS_TABLE: logs
+      Policies:
+        - arn:aws:iam::163683790602:policy/SESEmailActionsPolicy
+        - arn:aws:iam::163683790602:policy/CognitoAccessPolicy
     Metadata:
       BuildMethod: makefile
 
@@ -223,6 +254,8 @@ Resources:
         Variables:
           USER_TABLE: users
           LOGS_TABLE: logs
+      Policies:
+        - arn:aws:iam::163683790602:policy/CognitoAccessPolicy
     Metadata:
       BuildMethod: makefile
 
@@ -242,6 +275,8 @@ Resources:
         Variables:
           USER_TABLE: users
           LOGS_TABLE: logs
+      Policies:
+        - arn:aws:iam::163683790602:policy/CognitoAccessPolicy
     Metadata:
       BuildMethod: makefile
 
@@ -340,9 +375,6 @@ Resources:
       BuildMethod: makefile
 
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   AscendaAPI:
-    Description: "API Gateway endpoint URL for Prod environment"
-    Value: !Sub "https://${AscendaApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Description: "API Gateway ID"
+    Value: !Ref AscendaApi

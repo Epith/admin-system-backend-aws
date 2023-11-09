@@ -53,7 +53,7 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGa
 	region := os.Getenv("AWS_REGION")
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)})
-
+	log.Println("2.1")
 	if err != nil {
 		return events.APIGatewayV2CustomAuthorizerSimpleResponse{
 			IsAuthorized: false,

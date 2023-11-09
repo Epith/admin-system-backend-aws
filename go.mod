@@ -1,6 +1,6 @@
 module ascenda
 
-go 1.21.3
+go 1.21
 
 replace gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.8
 

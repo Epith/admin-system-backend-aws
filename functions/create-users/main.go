@@ -29,15 +29,12 @@ type User struct {
 }
 
 type Log struct {
-	Log_ID          string      `json:"log_id"`
-	Severity        int         `json:"severity"`
-	User_ID         string      `json:"user_id"`
-	Action_Type     int         `json:"action_type"`
-	Resource_Type   string      `json:"resource_type"`
-	Body            interface{} `json:"body"`
-	QueryParameters interface{} `json:"query_parameters"`
-	Error           interface{} `json:"error"`
-	Timestamp       time.Time   `json:"timestamp"`
+	Log_ID      string    `json:"log_id"`
+	User_ID     string    `json:"user_id"`
+	Description string    `json:"description"`
+	UserAgent   string    `json:"user_agent"`
+	Timestamp   time.Time `json:"timestamp"`
+	TTL         float64   `json:"ttl"`
 }
 
 var (
@@ -96,67 +93,47 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	error,
 ) {
 	var user User
-
-	//marshal body into user
-	if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
-		err = errors.New(ErrorInvalidUserData)
-		if logErr := sendLogs(req, 2, 2, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, err
-	}
-
-	//error checks
-	if !IsEmailValid(user.Email) {
-		err := errors.New(ErrorInvalidEmail)
-		if logErr := sendLogs(req, 2, 2, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, err
-	}
-	if len(user.FirstName) == 0 {
-		err := errors.New(ErrorInvalidFirstName)
-		if logErr := sendLogs(req, 2, 2, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorInvalidFirstName)
-	}
-	if len(user.LastName) == 0 {
-		err := errors.New(ErrorInvalidLastName)
-		if logErr := sendLogs(req, 2, 2, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, err
-	}
-	user.User_ID = uuid.NewString()
-
-	//putting user into dynamo
-	av, err := dynamodbattribute.MarshalMap(user)
-
-	if err != nil {
-		if logErr := sendLogs(req, 3, 2, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorCouldNotMarshalItem)
-	}
-
-	input := &dynamodb.PutItemInput{
-		Item:      av,
-		TableName: aws.String(tableName),
-	}
-
-	_, err = dynaClient.PutItem(input)
-	if err != nil {
-		if logErr := sendLogs(req, 3, 2, "user", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
-		return nil, errors.New(ErrorCouldNotDynamoPutItem)
-	}
-
-	if logErr := sendLogs(req, 1, 2, "user", dynaClient, err); logErr != nil {
+	if logErr := sendLogs(req, dynaClient); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
-	EmailVerification(user.Email)
+	// //marshal body into user
+	// if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
+	// 	err = errors.New(ErrorInvalidUserData)
+	// 	return nil, err
+	// }
+
+	// //error checks
+	// if !IsEmailValid(user.Email) {
+	// 	err := errors.New(ErrorInvalidEmail)
+	// 	return nil, err
+	// }
+	// if len(user.FirstName) == 0 {
+	// 	return nil, errors.New(ErrorInvalidFirstName)
+	// }
+	// if len(user.LastName) == 0 {
+	// 	err := errors.New(ErrorInvalidLastName)
+	// 	return nil, err
+	// }
+	// user.User_ID = uuid.NewString()
+
+	// //putting user into dynamo
+	// av, err := dynamodbattribute.MarshalMap(user)
+
+	// if err != nil {
+	// 	return nil, errors.New(ErrorCouldNotMarshalItem)
+	// }
+
+	// input := &dynamodb.PutItemInput{
+	// 	Item:      av,
+	// 	TableName: aws.String(tableName),
+	// }
+
+	// _, err = dynaClient.PutItem(input)
+	// if err != nil {
+	// 	return nil, errors.New(ErrorCouldNotDynamoPutItem)
+	// }
+
+	// EmailVerification(user.Email)
 	return &user, nil
 }
 
@@ -174,18 +151,19 @@ func IsEmailValid(email string) bool {
 	return true
 }
 
-func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resource string, dynaClient dynamodbiface.DynamoDBAPI, err error) error {
+func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) error {
+	// Calculate the TTL value (one month from now)
+	ttl := time.Minute
+
 	LOGS_TABLE := os.Getenv("LOGS_TABLE")
+	// TTL := os.Getenv("TTL")
 	//create log struct
 	log := Log{}
-	log.Body = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
-	log.QueryParameters = req.QueryStringParameters
-	log.Error = err
 	log.Log_ID = uuid.NewString()
-	log.Severity = severity
 	log.User_ID = req.RequestContext.Identity.User
-	log.Action_Type = action
-	log.Resource_Type = resource
+	log.UserAgent = req.RequestContext.Identity.UserAgent
+	log.TTL = ttl.Seconds()
+	log.Description = "test description"
 	log.Timestamp = time.Now().UTC()
 
 	av, err := dynamodbattribute.MarshalMap(log)

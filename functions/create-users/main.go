@@ -154,7 +154,7 @@ func IsEmailValid(email string) bool {
 
 func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) error {
 	// Calculate the TTL value (one month from now)
-	ttl := time.Minute
+	//ttl := time.Minute
 
 	LOGS_TABLE := os.Getenv("LOGS_TABLE")
 	// TTL := os.Getenv("TTL")
@@ -163,7 +163,7 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	log.Log_ID = uuid.NewString()
 	log.User_ID = req.RequestContext.Identity.User
 	log.UserAgent = req.RequestContext.Identity.UserAgent
-	log.TTL = ttl.Seconds()
+	log.TTL = 1699564218
 	log.Description = "test description"
 	log.Timestamp = time.Now().UTC()
 	fmt.Println(log)

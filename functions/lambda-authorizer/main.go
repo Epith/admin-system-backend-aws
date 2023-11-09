@@ -46,6 +46,7 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGa
 	// 	}
 	// }
 	// accessToken := strings.Split(tokenCookie, "=")[1]
+	log.Println("1")
 	accessToken := request.Headers["authorization"]
 	route := request.RawPath[6:]
 	method := request.RequestContext.HTTP.Method
@@ -58,11 +59,11 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGa
 			IsAuthorized: false,
 		}, nil
 	}
-
+	log.Println("2")
 	dynaClient := dynamodb.New(awsSession)
 	cognitoClient := cognitoidentityprovider.New(awsSession)
 	ROLE_TABLE := os.Getenv("ROLES_TABLE")
-
+	log.Println("3")
 	//Check for user's role with cognito
 	role, err := FetchUserAttributes(accessToken, cognitoClient)
 	if err != nil {

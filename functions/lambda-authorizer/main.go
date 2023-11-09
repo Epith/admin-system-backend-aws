@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -35,18 +36,11 @@ type Role struct {
 	Access map[string][]string `json:"access"`
 }
 
-func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGatewayV2CustomAuthorizerSimpleResponse, error) {
+func handler(request events.APIGatewayV2CustomAuthorizerV2Request) events.APIGatewayV2CustomAuthorizerSimpleResponse {
 
 	authorised := false
-	// tokenCookie := ""
-	// for i := 0; i < len(request.Cookies); i++ {
-	// 	if strings.Contains(request.Cookies[i], "accessToken") {
-	// 		tokenCookie = request.Cookies[i]
-	// 	}
-	// }
-	// accessToken := strings.Split(tokenCookie, "=")[1]
-	accessToken := request.Headers["authorization"]
-	route := request.RawPath[6:]
+	accessToken := strings.Split(request.Cookies[2], "=")
+	route := request.RouteKey
 	method := request.RequestContext.HTTP.Method
 	region := os.Getenv("AWS_REGION")
 	awsSession, err := session.NewSession(&aws.Config{
@@ -55,15 +49,15 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGa
 	if err != nil {
 		return events.APIGatewayV2CustomAuthorizerSimpleResponse{
 			IsAuthorized: false,
-		}, nil
+		}
 	}
 
 	dynaClient := dynamodb.New(awsSession)
 	cognitoClient := cognitoidentityprovider.New(awsSession)
 	ROLE_TABLE := os.Getenv("ROLES_TABLE")
 
-	//Check for user's role with cognito
-	role, err := FetchUserAttributes(accessToken, cognitoClient)
+	//Check User Table if role exist?
+	role, err := FetchUserAttributes(accessToken[2], cognitoClient)
 	if err == nil {
 		// Get list of access of Role
 		access, err2 := GetAccessByRole(role, ROLE_TABLE, dynaClient)
@@ -75,7 +69,7 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGa
 
 	return events.APIGatewayV2CustomAuthorizerSimpleResponse{
 		IsAuthorized: authorised,
-	}, nil
+	}
 }
 
 func FetchUserAttributes(accessToken string, cognitoClient *cognitoidentityprovider.CognitoIdentityProvider) (string, error) {
@@ -96,6 +90,7 @@ func FetchUserAttributes(accessToken string, cognitoClient *cognitoidentityprovi
 			break
 		}
 	}
+
 	return role, nil
 }
 
@@ -119,7 +114,7 @@ func GetAccessByRole(role, tableName string, dynaClient dynamodbiface.DynamoDBAP
 	if err != nil {
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
-	log.Println(item)
+
 	return item, nil
 }
 

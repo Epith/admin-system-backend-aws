@@ -21,17 +21,14 @@ Resources:
         AllowMethods: ['GET', 'POST', 'PUT', 'DELETE']
         # AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
         AllowOrigins: ['*']
-      Auth:
-        DefaultAuthorizer: Lambda-Authorizer
-        Authorizers:
-          Lambda-Authorizer:
-            AuthorizerPayloadFormatVersion: 2.0
-            FunctionArn: !GetAtt LambdaAuthorizer.Arn
-            Identity:
-              Headers:
-                - Authorization
-              ReauthorizeEvery: 300
-            EnableSimpleResponses: true
+      # Auth:
+      #   Authorizer:
+      #     AuthorizerPayloadFormatVersion: 2.0
+      #     FunctionArn: !GetAtt LambdaAuthorizer.Arn
+      #     Identity:
+      #       Headers:
+      #         - Authorization
+      #       ReauthorizeEvery: 300
       Domain:
         DomainName: itsag2t2.com
         CertificateArn: arn:aws:acm:ap-southeast-1:163683790602:certificate/17266c11-0d22-4f17-b63f-92e2227151c1
@@ -45,18 +42,18 @@ Resources:
   #     ResourceArn: !Ref AscendaApi
   #     WebACLArn: arn:aws:wafv2:ap-southeast-1:163683790602:regional/webacl/AscendaWebACL/0e1a3b1a-5b1a-4b6e-9b9e-3b0b4b5b4b5b
 
-  LambdaAuthorizer:
-    # Type: AWS::Lambda::Function
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: functions/lambda-authorizer/
-      Handler: bootstrap
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
-      Environment:
-        Variables:
-          ROLES_TABLE: roles
-    Metadata:
-      BuildMethod: makefile
+  # LambdaAuthorizer:
+  #   Type: AWS::Lambda::Function
+  #   Properties:
+  #     CodeUri: functions/lambda-authorizer/
+  #     Handler: bootstrap
+  #     Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+  #     Environment:
+  #       Variables:
+  #         USER_TABLE: users
+  #         ROLES_TABLE: roles
+  #   Metadata:
+  #     BuildMethod: makefile
 
   GetMakerFunction:
     Type: AWS::Serverless::Function

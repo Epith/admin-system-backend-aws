@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
@@ -27,6 +28,11 @@ type User struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Role      string `json:"role"`
+}
+
+type cognitoUser struct {
+	*User
+	Password string `json:"password"`
 }
 
 type Log struct {
@@ -71,9 +77,9 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
+	cognitoClient := cognitoidentityprovider.New(awsSession)
 
-	//calling create user in dynamo func
-	res, err := CreateUser(request, USER_TABLE, dynaClient)
+	res, err := CreateUser(request, USER_TABLE, dynaClient, cognitoClient)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
@@ -89,13 +95,20 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (
+func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI, cognitoClient *cognitoidentityprovider.CognitoIdentityProvider) (
 	*User,
 	error,
 ) {
-	var user User
-	if logErr := sendLogs(req, dynaClient); logErr != nil {
-		log.Println("Logging err :", logErr)
+	var user cognitoUser
+
+	//marshal body into user
+	if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
+		log.Println(err)
+		err = errors.New(ErrorInvalidUserData)
+		if logErr := sendLogs(req, 2, 2, "user", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, err
 	}
 	// //marshal body into user
 	// if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
@@ -117,8 +130,8 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	// }
 	// user.User_ID = uuid.NewString()
 
-	// //putting user into dynamo
-	// av, err := dynamodbattribute.MarshalMap(user)
+	//putting user into dynamo
+	av, err := dynamodbattribute.MarshalMap(user.User)
 
 	// if err != nil {
 	// 	return nil, errors.New(ErrorCouldNotMarshalItem)
@@ -134,8 +147,67 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	// 	return nil, errors.New(ErrorCouldNotDynamoPutItem)
 	// }
 
-	// EmailVerification(user.Email)
-	return &user, nil
+	createInput := &cognitoidentityprovider.AdminCreateUserInput{
+		DesiredDeliveryMediums: []*string{
+			aws.String("EMAIL"),
+		},
+		ForceAliasCreation: aws.Bool(true),
+		UserAttributes: []*cognitoidentityprovider.AttributeType{
+			{
+				Name:  aws.String("name"),
+				Value: aws.String(user.FirstName + user.LastName),
+			},
+			{
+				Name:  aws.String("given_name"),
+				Value: aws.String(user.User_ID),
+			},
+			{
+				Name:  aws.String("email_verified"),
+				Value: aws.String("True"),
+			},
+			{
+				Name:  aws.String("email"),
+				Value: aws.String(user.Email),
+			},
+			{
+				Name:  aws.String("custom:role"),
+				Value: aws.String(user.Role),
+			},
+		},
+		UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
+		Username:   aws.String(user.User_ID),
+	}
+
+	_, createErr := cognitoClient.AdminCreateUser(createInput)
+	if createErr != nil {
+		log.Println(createErr)
+		if logErr := sendLogs(req, 3, 2, "user", dynaClient, createErr); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException)
+	}
+
+	passwdInput := &cognitoidentityprovider.AdminSetUserPasswordInput{
+		Password:   aws.String(user.Password),
+		Permanent:  aws.Bool(true),
+		Username:   aws.String(user.User_ID),
+		UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
+	}
+
+	_, passwdErr := cognitoClient.AdminSetUserPassword(passwdInput)
+	if passwdErr != nil {
+		log.Println(passwdErr)
+		if logErr := sendLogs(req, 3, 2, "user", dynaClient, passwdErr); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException)
+	}
+
+	if logErr := sendLogs(req, 1, 2, "user", dynaClient, err); logErr != nil {
+		log.Println("Logging err :", logErr)
+	}
+	EmailVerification(user.Email)
+	return user.User, nil
 }
 
 func main() {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"slices"
@@ -64,9 +65,15 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGa
 
 	//Check for user's role with cognito
 	role, err := FetchUserAttributes(accessToken, cognitoClient)
+	if err != nil {
+		fmt.Println(err)
+	}
 	if err == nil {
 		// Get list of access of Role
 		access, err2 := GetAccessByRole(role, ROLE_TABLE, dynaClient)
+		if err2 != nil {
+			fmt.Println(err)
+		}
 		if err2 == nil {
 			//Check Roles Item if Role provides permission
 			authorised = slices.Contains(access.Access[route], method)

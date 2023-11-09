@@ -46,23 +46,24 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGa
 	// 	}
 	// }
 	// accessToken := strings.Split(tokenCookie, "=")[1]
+	log.Println("1")
 	accessToken := request.Headers["authorization"]
 	route := request.RawPath[6:]
 	method := request.RequestContext.HTTP.Method
 	region := os.Getenv("AWS_REGION")
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)})
-
+	log.Println("2.1")
 	if err != nil {
 		return events.APIGatewayV2CustomAuthorizerSimpleResponse{
 			IsAuthorized: false,
 		}, nil
 	}
-
+	log.Println("2")
 	dynaClient := dynamodb.New(awsSession)
 	cognitoClient := cognitoidentityprovider.New(awsSession)
 	ROLE_TABLE := os.Getenv("ROLES_TABLE")
-
+	log.Println("3")
 	//Check for user's role with cognito
 	role, err := FetchUserAttributes(accessToken, cognitoClient)
 	if err != nil {

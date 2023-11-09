@@ -2,29 +2,118 @@ config:
   target: "{{ $processEnvironment.API_URL }}"
   processor: generator.js
   phases:
-    - duration: 600
-      arrivalRate: 300
-
+    - name: Warm up
+      duration: 30
+      arrivalRate: 1
+    # - name: Constant
+    #   duration: 600
+    #   arrivalRate: 300
+  defaults:
+  headers:
+    Authorization: 'Bearer <<enter your valid JWT token>>'
+# before:
+#   flow:
+#     - log: "Get auth token"
+#     - post:
+#         url: "/auth"
+#         json:
+#           username: "myUsername"
+#           password: "myPassword"
+#         capture:
+#           - json: $.id_token
+#             as: token
 scenarios:
-  - name: "Generate products"
-    weight: 8
+  - name: "Points"
     flow:
-      - function: generateProduct
-      - put:
-          url: "/{{ id }}"
+      - function: generateRandomData
+      - post:
+          url: "/points"
           headers:
             Content-Type: "application/json"
           json:
-            id: "{{ id }}"
-            name: "{{ name }}"
-            price: "{{ price }}"
-      - get:
-          url: "/{{ id }}"
+            user_id: "545bc2aa-7a37-11ee-b962-0242ac120002"
+          capture:
+            json: "$.points_id"
+            as: "points_id"
       - think: 3
-      - delete:
-          url: "/{{ id }}"
-  - name: "Get products"
-    weight: 2
-    flow:
       - get:
-          url: "/"
+          url: "/points?id={{ points_id }}"
+      - think: 2
+      - put:
+          url: "/points"
+          headers:
+            Content-Type: "application/json"
+          json:
+            user_id: "545bc2aa-7a37-11ee-b962-0242ac120002"
+            points_id: "{{ points_id }}"
+            points: 10
+
+  - name: "Maker Requests"
+    flow:
+      - function: generateRandomData
+      - post:
+          url: "/makers"
+          headers:
+            Content-Type: "application/json"
+          json:
+            checker_roles: ["owner"]
+            maker_id: "9cfa199e-78bd-4eb7-8b6e-1b942d49bcb6"
+            resource_type: "points"
+            request_data:
+              user_id: "545bc2aa-7a37-11ee-b962-0242ac120002"
+              points_id: "bf16aeb5-818a-41d5-a8f3-f0f6bdac066f"
+              points: 9
+          capture:
+            json: "$.req_id"
+            as: "request_id"
+      - think: 3
+      - get:
+          url: "/makers/{{ id }}"
+
+  - name: "Checker Requests"
+    flow:
+      - function: generateRandomData
+      - get:
+          url: "/checkers?status=pending&role=owner"
+      - think: 3
+      - put:
+          url: "/checkers"
+          headers:
+            Content-Type: "application/json"
+          json:
+            request_id: "{{ request_id }}"
+            checker_role: "owner"
+            checker_id: "9cfa199e-78bd-4eb7-8b6e-1b942d49bcb6"
+            decision: "reject"
+
+# after:
+#   flow:
+#     - log: "Invalidate token"
+#     - post:
+#         url: "/logout"
+#         json:
+#           token: "{{ token }}"
+
+
+
+
+  # - name: "Get products"
+  #   weight: 2
+  #   flow:
+  #     - get:
+  #         url: "/"
+      # - function: generateRandomData
+      # - post:
+      #     url: "/{{ id }}"
+      #     headers:
+      #       Content-Type: "application/json"
+      #     json:
+      #       id: "{{ id }}"
+      #       name: "{{ name }}"
+      #       price: "{{ price }}"
+      # - get:
+      #     url: "/{{ id }}"
+      # - think: 3
+      # - delete:
+      #     url: "/{{ id }}"
+

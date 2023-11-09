@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
@@ -66,10 +67,11 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
+	cognitoClient := cognitoidentityprovider.New(awsSession)
 
 	//checking if user id is specified, if yes then update user in dynamo func
 	if len(user_id) > 0 {
-		res, err := UpdateUser(user_id, request, USER_TABLE, dynaClient)
+		res, err := UpdateUser(user_id, request, USER_TABLE, dynaClient, cognitoClient)
 		if err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
@@ -97,7 +99,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 }
 
-func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
+func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI, cognitoClient *cognitoidentityprovider.CognitoIdentityProvider) (*User, error) {
 	var user User
 
 	//unmarshal body into user struct
@@ -162,6 +164,34 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 	if logErr := sendLogs(req, 1, 3, "user", dynaClient, err); logErr != nil {
 		log.Println("Logging err :", logErr)
+	}
+
+	//cognito update
+	cognitoInput := &cognitoidentityprovider.AdminUpdateUserAttributesInput{
+		UserAttributes: []*cognitoidentityprovider.AttributeType{
+			{
+				Name:  aws.String("name"),
+				Value: aws.String(user.FirstName + user.LastName),
+			},
+			{
+				Name:  aws.String("email"),
+				Value: aws.String(user.Email),
+			},
+			{
+				Name:  aws.String("custom:role"),
+				Value: aws.String(user.Role),
+			},
+		},
+		UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
+		Username:   aws.String(id),
+	}
+
+	_, cognitoErr := cognitoClient.AdminUpdateUserAttributes(cognitoInput)
+	if cognitoErr != nil {
+		if logErr := sendLogs(req, 3, 3, "user", dynaClient, err); logErr != nil {
+			log.Println("Logging err :", logErr)
+		}
+		return nil, errors.New(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException)
 	}
 
 	return &user, nil

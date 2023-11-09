@@ -19,7 +19,7 @@ Resources:
       StageName: Prod
       CorsConfiguration:
         AllowMethods: ['GET', 'POST', 'PUT', 'DELETE']
-        # AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
         AllowOrigins: ['*']
       Auth:
         DefaultAuthorizer: Lambda-Authorizer
@@ -46,7 +46,6 @@ Resources:
   #     WebACLArn: arn:aws:wafv2:ap-southeast-1:163683790602:regional/webacl/AscendaWebACL/0e1a3b1a-5b1a-4b6e-9b9e-3b0b4b5b4b5b
 
   LambdaAuthorizer:
-    # Type: AWS::Lambda::Function
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/lambda-authorizer/
@@ -376,9 +375,6 @@ Resources:
       BuildMethod: makefile
 
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   AscendaAPI:
-    Description: "API Gateway endpoint URL for Prod environment"
-    Value: !Sub "https://${AscendaApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Description: "API Gateway ID"
+    Value: !Ref AscendaApi

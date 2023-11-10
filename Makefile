@@ -1,14 +1,7 @@
 STACK_NAME ?= ascenda-serverless
-FUNCTIONS := get-points get-logs get-roles get-makers get-checkers create-points create-roles create-makers update-points update-roles update-checkers delete-roles lambda-authorizer
-USER_FUNCTIONS := get-users create-users update-users delete-users
+FUNCTIONS := get-users get-points get-logs get-roles get-makers get-checkers create-users create-points create-roles create-makers update-points update-users update-roles update-checkers delete-users delete-roles lambda-authorizer
 GO := go
 REGION := ap-southeast-1
-
-build-user:
-	${MAKE} ${MAKEOPTS} $(foreach function,${USER_FUNCTIONS}, build-${function})
-
-build-user-%:
-	cd functions/user/$* && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 ${GO} build -o bootstrap
 
 build:
 	${MAKE} ${MAKEOPTS} $(foreach function,${FUNCTIONS}, build-${function})

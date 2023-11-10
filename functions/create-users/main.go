@@ -36,7 +36,7 @@ type cognitoUser struct {
 
 type Log struct {
 	Log_ID      string    `json:"log_id"`
-	User_ID     string    `json:"user_id"`
+	IP          string    `json:"ip"`
 	Description string    `json:"description"`
 	UserAgent   string    `json:"user_agent"`
 	Timestamp   time.Time `json:"timestamp"`
@@ -228,10 +228,10 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	//create log struct
 	log := Log{}
 	log.Log_ID = uuid.NewString()
-	log.User_ID = req.RequestContext.AccountID
+	log.IP = req.Headers["x-forwarded-for"]
 	log.UserAgent = req.Headers["user-agent"]
 	log.TTL = ttlValue
-	fmt.Println(req.RequestContext.Identity.SourceIP)
+	
 	if role != "" {
 		log.Description = requester + "enrolled " + role + " " + firstName + " " + lastName
 	} else {

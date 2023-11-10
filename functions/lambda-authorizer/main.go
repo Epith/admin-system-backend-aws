@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"slices"
@@ -64,16 +63,16 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGa
 	if err != nil {
 		log.Println(err)
 	}
-	
+
 	// Get list of access of Role
 	access, err2 := GetAccessByRole(role, ROLE_TABLE, dynaClient)
 	if err2 != nil {
 		log.Println(err)
 	}
-	
+
 	//Check Roles Item if Role provides permission
 	authorised = slices.Contains(access.Access[route], method)
-		
+
 	return events.APIGatewayV2CustomAuthorizerSimpleResponse{
 		IsAuthorized: authorised,
 	}, nil

@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -98,36 +97,37 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	*User,
 	error,
 ) {
-	if logErr := sendLogs(req, dynaClient); logErr != nil {
-		log.Println("Logging err :", logErr)
-	}
 	var user cognitoUser
 
-	// //marshal body into user
-	// if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
-	// 	log.Println(err)
-	// 	err = errors.New(ErrorInvalidUserData)
-	// 	return nil, err
-	// }
-	// //marshal body into user
-	// if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
-	// 	err = errors.New(ErrorInvalidUserData)
-	// 	return nil, err
-	// }
+	//marshal body into user
+	if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
+		log.Println(err)
+		err = errors.New(ErrorInvalidUserData)
+		return nil, err
+	}
+	//marshal body into user
+	if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
+		err = errors.New(ErrorInvalidUserData)
+		return nil, err
+	}
 
-	// //error checks
-	// if !IsEmailValid(user.Email) {
-	// 	err := errors.New(ErrorInvalidEmail)
-	// 	return nil, err
-	// }
-	// if len(user.FirstName) == 0 {
-	// 	return nil, errors.New(ErrorInvalidFirstName)
-	// }
-	// if len(user.LastName) == 0 {
-	// 	err := errors.New(ErrorInvalidLastName)
-	// 	return nil, err
-	// }
-	// user.User_ID = uuid.NewString()
+	//error checks
+	if !IsEmailValid(user.Email) {
+		err := errors.New(ErrorInvalidEmail)
+		return nil, err
+	}
+	if len(user.FirstName) == 0 {
+		return nil, errors.New(ErrorInvalidFirstName)
+	}
+	if len(user.LastName) == 0 {
+		err := errors.New(ErrorInvalidLastName)
+		return nil, err
+	}
+	user.User_ID = uuid.NewString()
+
+	if logErr := sendLogs(req, dynaClient, user.FirstName, user.LastName, user.Role); logErr != nil {
+		log.Println("Logging err :", logErr)
+	}
 
 	// //putting user into dynamo
 	// av, err := dynamodbattribute.MarshalMap(user.User)
@@ -214,30 +214,35 @@ func IsEmailValid(email string) bool {
 	return true
 }
 
-func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) error {
+func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, firstName string, lastName string, role string) error {
 	// Calculate the TTL value (one month from now)
 	now := time.Now()
 	oneWeekFromNow := now.AddDate(0, 0, 1)
 	ttlValue := oneWeekFromNow.Unix()
 
+	//requester
 	LOGS_TABLE := os.Getenv("LOGS_TABLE")
+	requester := req.QueryStringParameters["requester"]
 	// TTL := os.Getenv("TTL")
 	//create log struct
 	log := Log{}
 	log.Log_ID = uuid.NewString()
 	log.User_ID = req.RequestContext.AccountID
 	log.UserAgent = req.Headers["user-agent"]
-	fmt.Println(req.Headers)
 	log.TTL = ttlValue
-	log.Description = "test description"
+
+	if role != "" {
+		log.Description = requester + "enrolled " + role + " " + firstName + lastName
+	} else {
+		log.Description = requester + "enrolled user " + " " + firstName + lastName
+	}
 	log.Timestamp = time.Now().UTC()
-	fmt.Println(log)
 	av, err := dynamodbattribute.MarshalMap(log)
 
 	if err != nil {
 		return errors.New("failed to marshal log")
 	}
-	fmt.Println(av)
+
 	input := &dynamodb.PutItemInput{
 		Item:      av,
 		TableName: aws.String(LOGS_TABLE),
@@ -246,6 +251,7 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	if err != nil {
 		return errors.New("Could not dynamo put")
 	}
+
 	return nil
 }
 

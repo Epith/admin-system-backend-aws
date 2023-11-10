@@ -37,13 +37,6 @@ type Role struct {
 
 func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGatewayV2CustomAuthorizerSimpleResponse, error) {
 	authorised := false
-	// tokenCookie := ""
-	// for i := 0; i < len(request.Cookies); i++ {
-	// 	if strings.Contains(request.Cookies[i], "accessToken") {
-	// 		tokenCookie = request.Cookies[i]
-	// 	}
-	// }
-	// accessToken := strings.Split(tokenCookie, "=")[1]
 	accessToken := request.Headers["authorization"]
 	route := request.RawPath[6:]
 	method := request.RequestContext.HTTP.Method
@@ -62,12 +55,18 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGa
 	role, err := FetchUserAttributes(accessToken, cognitoClient)
 	if err != nil {
 		log.Println(err)
+		return events.APIGatewayV2CustomAuthorizerSimpleResponse{
+			IsAuthorized: false,
+		}, nil
 	}
 
 	// Get list of access of Role
 	access, err2 := GetAccessByRole(role, ROLE_TABLE, dynaClient)
 	if err2 != nil {
 		log.Println(err)
+		return events.APIGatewayV2CustomAuthorizerSimpleResponse{
+			IsAuthorized: false,
+		}, nil
 	}
 
 	if access != nil {

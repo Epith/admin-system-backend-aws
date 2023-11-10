@@ -40,7 +40,7 @@ type Log struct {
 	Description string    `json:"description"`
 	UserAgent   string    `json:"user_agent"`
 	Timestamp   time.Time `json:"timestamp"`
-	TTL         float64   `json:"ttl"`
+	TTL         int64     `json:"ttl"`
 }
 
 var (
@@ -217,7 +217,7 @@ func IsEmailValid(email string) bool {
 func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) error {
 	// Calculate the TTL value (one month from now)
 	now := time.Now()
-	oneWeekFromNow := now.AddDate(0, 0, 7)
+	oneWeekFromNow := now.AddDate(0, 0, 1)
 	ttlValue := oneWeekFromNow.Unix()
 
 	LOGS_TABLE := os.Getenv("LOGS_TABLE")
@@ -226,9 +226,9 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	log := Log{}
 	log.Log_ID = uuid.NewString()
 	log.User_ID = req.RequestContext.AccountID
-	//log.UserAgent = req.Headers["UserAgent"]
+	log.UserAgent = req.Headers["user-agent"]
 	fmt.Println(req.Headers)
-	log.TTL = float64(ttlValue)
+	log.TTL = ttlValue
 	log.Description = "test description"
 	log.Timestamp = time.Now().UTC()
 	fmt.Println(log)

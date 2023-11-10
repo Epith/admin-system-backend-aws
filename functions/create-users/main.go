@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -230,11 +231,11 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	log.User_ID = req.RequestContext.AccountID
 	log.UserAgent = req.Headers["user-agent"]
 	log.TTL = ttlValue
-
+	fmt.Println(req.RequestContext.Identity.SourceIP)
 	if role != "" {
-		log.Description = requester + "enrolled " + role + " " + firstName + lastName
+		log.Description = requester + "enrolled " + role + " " + firstName + " " + lastName
 	} else {
-		log.Description = requester + "enrolled user " + " " + firstName + lastName
+		log.Description = requester + "enrolled user " + firstName + " " + lastName
 	}
 	log.Timestamp = time.Now().UTC()
 	av, err := dynamodbattribute.MarshalMap(log)

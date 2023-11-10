@@ -70,8 +70,10 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGa
 		log.Println(err)
 	}
 
-	//Check Roles Item if Role provides permission
-	authorised = slices.Contains(access.Access[route], method)
+	if access != nil {
+		//Check Roles Item if Role provides permission
+		authorised = slices.Contains(access.Access[route], method)
+	}
 
 	return events.APIGatewayV2CustomAuthorizerSimpleResponse{
 		IsAuthorized: authorised,

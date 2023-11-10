@@ -34,12 +34,12 @@ type cognitoUser struct {
 }
 
 type Log struct {
-	Log_ID      string    `json:"log_id"`
-	IP          string    `json:"ip"`
-	Description string    `json:"description"`
-	UserAgent   string    `json:"user_agent"`
-	Timestamp   time.Time `json:"timestamp"`
-	TTL         int64     `json:"ttl"`
+	Log_ID      string `json:"log_id"`
+	IP          string `json:"ip"`
+	Description string `json:"description"`
+	UserAgent   string `json:"user_agent"`
+	Timestamp   int64  `json:"timestamp"`
+	TTL         int64  `json:"ttl"`
 }
 
 var (
@@ -236,7 +236,7 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	} else {
 		log.Description = requester + "enrolled user " + firstName + " " + lastName
 	}
-	log.Timestamp = time.Now().UTC()
+	log.Timestamp = time.Now().Unix()
 	av, err := dynamodbattribute.MarshalMap(log)
 
 	if err != nil {

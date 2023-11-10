@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -125,78 +126,80 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	}
 	user.User_ID = uuid.NewString()
 
+	//putting user into dynamo
+	av, err := dynamodbattribute.MarshalMap(user.User)
+
+	if err != nil {
+		return nil, errors.New(ErrorCouldNotMarshalItem)
+	}
+
+	input := &dynamodb.PutItemInput{
+		Item:      av,
+		TableName: aws.String(tableName),
+	}
+
+	_, err = dynaClient.PutItem(input)
+	if err != nil {
+		return nil, errors.New(ErrorCouldNotDynamoPutItem)
+	}
+
+	createInput := &cognitoidentityprovider.AdminCreateUserInput{
+		DesiredDeliveryMediums: []*string{
+			aws.String("EMAIL"),
+		},
+		ForceAliasCreation: aws.Bool(true),
+		UserAttributes: []*cognitoidentityprovider.AttributeType{
+			{
+				Name:  aws.String("name"),
+				Value: aws.String(user.FirstName + user.LastName),
+			},
+			{
+				Name:  aws.String("given_name"),
+				Value: aws.String(user.User_ID),
+			},
+			{
+				Name:  aws.String("email_verified"),
+				Value: aws.String("True"),
+			},
+			{
+				Name:  aws.String("email"),
+				Value: aws.String(user.Email),
+			},
+			{
+				Name:  aws.String("custom:role"),
+				Value: aws.String(user.Role),
+			},
+		},
+		UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
+		Username:   aws.String(user.User_ID),
+	}
+
+	_, createErr := cognitoClient.AdminCreateUser(createInput)
+	if createErr != nil {
+		log.Println(createErr)
+		return nil, errors.New(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException)
+	}
+
+	passwdInput := &cognitoidentityprovider.AdminSetUserPasswordInput{
+		Password:   aws.String(user.Password),
+		Permanent:  aws.Bool(true),
+		Username:   aws.String(user.User_ID),
+		UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
+	}
+
+	_, passwdErr := cognitoClient.AdminSetUserPassword(passwdInput)
+	if passwdErr != nil {
+		log.Println(passwdErr)
+		return nil, errors.New(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException)
+	}
+
+	EmailVerification(user.Email)
+
+	//logging
 	if logErr := sendLogs(req, dynaClient, user.FirstName, user.LastName, user.Role); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
 
-	// //putting user into dynamo
-	// av, err := dynamodbattribute.MarshalMap(user.User)
-
-	// if err != nil {
-	// 	return nil, errors.New(ErrorCouldNotMarshalItem)
-	// }
-
-	// input := &dynamodb.PutItemInput{
-	// 	Item:      av,
-	// 	TableName: aws.String(tableName),
-	// }
-
-	// _, err = dynaClient.PutItem(input)
-	// if err != nil {
-	// 	return nil, errors.New(ErrorCouldNotDynamoPutItem)
-	// }
-
-	// createInput := &cognitoidentityprovider.AdminCreateUserInput{
-	// 	DesiredDeliveryMediums: []*string{
-	// 		aws.String("EMAIL"),
-	// 	},
-	// 	ForceAliasCreation: aws.Bool(true),
-	// 	UserAttributes: []*cognitoidentityprovider.AttributeType{
-	// 		{
-	// 			Name:  aws.String("name"),
-	// 			Value: aws.String(user.FirstName + user.LastName),
-	// 		},
-	// 		{
-	// 			Name:  aws.String("given_name"),
-	// 			Value: aws.String(user.User_ID),
-	// 		},
-	// 		{
-	// 			Name:  aws.String("email_verified"),
-	// 			Value: aws.String("True"),
-	// 		},
-	// 		{
-	// 			Name:  aws.String("email"),
-	// 			Value: aws.String(user.Email),
-	// 		},
-	// 		{
-	// 			Name:  aws.String("custom:role"),
-	// 			Value: aws.String(user.Role),
-	// 		},
-	// 	},
-	// 	UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
-	// 	Username:   aws.String(user.User_ID),
-	// }
-
-	// _, createErr := cognitoClient.AdminCreateUser(createInput)
-	// if createErr != nil {
-	// 	log.Println(createErr)
-	// 	return nil, errors.New(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException)
-	// }
-
-	// passwdInput := &cognitoidentityprovider.AdminSetUserPasswordInput{
-	// 	Password:   aws.String(user.Password),
-	// 	Permanent:  aws.Bool(true),
-	// 	Username:   aws.String(user.User_ID),
-	// 	UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
-	// }
-
-	// _, passwdErr := cognitoClient.AdminSetUserPassword(passwdInput)
-	// if passwdErr != nil {
-	// 	log.Println(passwdErr)
-	// 	return nil, errors.New(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException)
-	// }
-
-	//EmailVerification(user.Email)
 	return user.User, nil
 }
 
@@ -216,14 +219,20 @@ func IsEmailValid(email string) bool {
 
 func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, firstName string, lastName string, role string) error {
 	// Calculate the TTL value (one month from now)
+	TTL := os.Getenv("TTL")
+	ttlNum, err := strconv.Atoi(TTL)
+	if err != nil {
+		return errors.New("invalid ttl")
+	}
+
 	now := time.Now()
-	oneWeekFromNow := now.AddDate(0, 0, 1)
+	oneWeekFromNow := now.AddDate(0, 0, ttlNum)
 	ttlValue := oneWeekFromNow.Unix()
 
 	//requester
 	LOGS_TABLE := os.Getenv("LOGS_TABLE")
 	requester := req.QueryStringParameters["requester"]
-	// TTL := os.Getenv("TTL")
+
 	//create log struct
 	log := Log{}
 	log.Log_ID = uuid.NewString()
@@ -232,9 +241,9 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	log.TTL = ttlValue
 
 	if role != "" {
-		log.Description = requester + "enrolled " + role + " " + firstName + " " + lastName
+		log.Description = requester + " enrolled " + role + " " + firstName + " " + lastName
 	} else {
-		log.Description = requester + "enrolled user " + firstName + " " + lastName
+		log.Description = requester + " enrolled user " + firstName + " " + lastName
 	}
 	log.Timestamp = time.Now().Unix()
 	av, err := dynamodbattribute.MarshalMap(log)

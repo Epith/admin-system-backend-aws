@@ -5,8 +5,7 @@ import (
 	"errors"
 	"log"
 	"os"
-	"regexp"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -25,16 +24,21 @@ type UserPoint struct {
 	Points    int    `json:"points"`
 }
 
+type User struct {
+	Email     string `json:"email"`
+	User_ID   string `json:"user_id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Role      string `json:"role"`
+}
+
 type Log struct {
-	Log_ID          string      `json:"log_id"`
-	Severity        int         `json:"severity"`
-	User_ID         string      `json:"user_id"`
-	Action_Type     int         `json:"action_type"`
-	Resource_Type   string      `json:"resource_type"`
-	Body            interface{} `json:"body"`
-	QueryParameters interface{} `json:"query_parameters"`
-	Error           interface{} `json:"error"`
-	Timestamp       time.Time   `json:"timestamp"`
+	Log_ID      string `json:"log_id"`
+	IP          string `json:"ip"`
+	Description string `json:"description"`
+	UserAgent   string `json:"user_agent"`
+	Timestamp   int64  `json:"timestamp"`
+	TTL         int64  `json:"ttl"`
 }
 
 var (
@@ -46,6 +50,7 @@ var (
 	ErrorCouldNotDeleteItem      = "could not delete item"
 	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
 	ErrorUserDoesNotExist        = "user.User does not exist"
+	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -85,10 +90,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, nil
 	}
 
-	if logErr := sendLogs(request, 2, 3, "point", dynaClient, err); logErr != nil {
-		log.Println("Logging err :", logErr)
-	}
-
 	return events.APIGatewayProxyResponse{
 		StatusCode: 404,
 		Body:       string("Invalid point data"),
@@ -98,52 +99,38 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
 	var userpoint UserPoint
-
+	oldPoints := 0
 	//unmarshal body into userpoint struct
 	if err := json.Unmarshal([]byte(req.Body), &userpoint); err != nil {
-		if logErr := sendLogs(req, 2, 3, "point", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(ErrorInvalidUserData)
 	}
 	userpoint.User_ID = user_id
 
 	if userpoint.Points_ID == "" {
 		err := errors.New(ErrorInvalidPointsID)
-		if logErr := sendLogs(req, 2, 3, "point", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, err
 	}
 
 	//checking if userpoint exist
 	results, err := FetchUserPoint(user_id, req, tableName, dynaClient)
 	if err != nil {
-		if logErr := sendLogs(req, 2, 3, "point", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(ErrorInvalidUserData)
 	}
 
 	var result = new(UserPoint)
 	for _, v := range *results {
 		if v.Points_ID == userpoint.Points_ID {
+			oldPoints = v.Points
 			result = &userpoint
 		}
 	}
 
 	if result.Points_ID != userpoint.Points_ID {
-		if logErr := sendLogs(req, 3, 3, "point", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(ErrorCouldNotMarshalItem)
 	}
 
 	av, err := dynamodbattribute.MarshalMap(result)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 3, "point", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(ErrorCouldNotMarshalItem)
 	}
 
@@ -154,15 +141,14 @@ func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableNam
 	}
 	_, err = dynaClient.PutItem(input)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 3, "point", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(ErrorCouldNotDynamoPutItem)
 	}
 
-	if logErr := sendLogs(req, 1, 3, "point", dynaClient, err); logErr != nil {
+	//logging
+	if logErr := sendLogs(req, dynaClient, user_id, oldPoints, userpoint.Points); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
+
 	return result, nil
 }
 
@@ -184,9 +170,6 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 
 	result, err := dynaClient.Query(input)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 3, "point", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
 
@@ -197,14 +180,36 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 	item := new([]UserPoint)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
 	if err != nil {
-		if logErr := sendLogs(req, 3, 3, "point", dynaClient, err); logErr != nil {
-			log.Println("Logging err :", logErr)
-		}
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
 
-	if logErr := sendLogs(req, 1, 3, "point", dynaClient, err); logErr != nil {
-		log.Println("Logging err :", logErr)
+	return item, nil
+}
+
+func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
+	//get single user from dynamo
+	input := &dynamodb.GetItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"user_id": {
+				S: aws.String(id),
+			},
+		},
+		TableName: aws.String(tableName),
+	}
+
+	result, err := dynaClient.GetItem(input)
+	if err != nil {
+		return nil, errors.New(ErrorFailedToFetchRecordID)
+	}
+
+	if result.Item == nil {
+		return nil, errors.New("user does not exist")
+	}
+
+	item := new(User)
+	err = dynamodbattribute.UnmarshalMap(result.Item, item)
+	if err != nil {
+		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
 
 	return item, nil
@@ -214,20 +219,42 @@ func main() {
 	lambda.Start(handler)
 }
 
-func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resource string, dynaClient dynamodbiface.DynamoDBAPI, err error) error {
+func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, userID string, oldPoints int, newPoints int) error {
+	// Calculate the TTL value (one month from now)
+	TTL := os.Getenv("TTL")
+	ttlNum, err := strconv.Atoi(TTL)
+	if err != nil {
+		return errors.New("invalid ttl")
+	}
+
+	//get updated user points name
+	USER_TABLE := os.Getenv("USER_TABLE")
+	res, err := FetchUserByID(userID, req, USER_TABLE, dynaClient)
+	if err != nil {
+		log.Println(err)
+		return errors.New("failed to get user")
+	}
+
+	now := time.Now()
+	oneWeekFromNow := now.AddDate(0, 0, ttlNum)
+	ttlValue := oneWeekFromNow.Unix()
+
+	//requester
 	LOGS_TABLE := os.Getenv("LOGS_TABLE")
+	requester := req.QueryStringParameters["requester"]
+
 	//create log struct
 	log := Log{}
-	log.Body = RemoveNewlineAndUnnecessaryWhitespace(req.Body)
-	log.QueryParameters = req.QueryStringParameters
-	log.Error = err
 	log.Log_ID = uuid.NewString()
-	log.Severity = severity
-	log.User_ID = req.RequestContext.Identity.User
-	log.Action_Type = action
-	log.Resource_Type = resource
-	log.Timestamp = time.Now().UTC()
+	log.IP = req.Headers["x-forwarded-for"]
+	log.UserAgent = req.Headers["user-agent"]
+	log.TTL = ttlValue
 
+	stringOld := strconv.Itoa(oldPoints)
+	stringNew := strconv.Itoa(newPoints)
+
+	log.Description = requester + " adjusted points of " + res.FirstName + " " + res.LastName + " from " + stringOld + " to " + stringNew
+	log.Timestamp = time.Now().Unix()
 	av, err := dynamodbattribute.MarshalMap(log)
 
 	if err != nil {
@@ -242,21 +269,6 @@ func sendLogs(req events.APIGatewayProxyRequest, severity int, action int, resou
 	if err != nil {
 		return errors.New("Could not dynamo put")
 	}
+
 	return nil
-}
-
-func RemoveNewlineAndUnnecessaryWhitespace(body string) string {
-	// Remove newline characters
-	body = regexp.MustCompile(`\n|\r`).ReplaceAllString(body, "")
-
-	// Remove unnecessary whitespace
-	body = regexp.MustCompile(`\s{2,}|\t`).ReplaceAllString(body, " ")
-
-	// Remove the character `\"`
-	body = regexp.MustCompile(`\"`).ReplaceAllString(body, "")
-
-	// Trim the body
-	body = strings.TrimSpace(body)
-
-	return body
 }

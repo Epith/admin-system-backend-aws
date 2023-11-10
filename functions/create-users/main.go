@@ -241,9 +241,9 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	log.TTL = ttlValue
 
 	if role != "" {
-		log.Description = requester + "enrolled " + role + " " + firstName + " " + lastName
+		log.Description = requester + " enrolled " + role + " " + firstName + " " + lastName
 	} else {
-		log.Description = requester + "enrolled user " + firstName + " " + lastName
+		log.Description = requester + " enrolled user " + firstName + " " + lastName
 	}
 	log.Timestamp = time.Now().Unix()
 	av, err := dynamodbattribute.MarshalMap(log)

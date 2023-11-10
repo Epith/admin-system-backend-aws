@@ -4,7 +4,7 @@ GO := go
 REGION := ap-southeast-1
 
 build:
-	${MAKE} ${MAKEOPTS} $(foreach function,${FUNCTIONS}, build-${function})
+	${MAKE} ${MAKEOPTS} $(foreach function,${wildcard FUNCTIONS/*/}, build-${function})
 
 build-%:
 	cd functions/$* && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 ${GO} build -o bootstrap

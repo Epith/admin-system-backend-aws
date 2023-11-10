@@ -37,7 +37,6 @@ type Role struct {
 }
 
 func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGatewayV2CustomAuthorizerSimpleResponse, error) {
-	log.Println("start of handler")
 	authorised := false
 	// tokenCookie := ""
 	// for i := 0; i < len(request.Cookies); i++ {
@@ -46,41 +45,35 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGa
 	// 	}
 	// }
 	// accessToken := strings.Split(tokenCookie, "=")[1]
-	log.Println("1")
 	accessToken := request.Headers["authorization"]
 	route := request.RawPath[6:]
 	method := request.RequestContext.HTTP.Method
 	region := os.Getenv("AWS_REGION")
 	awsSession, err := session.NewSession(&aws.Config{
 		Region: aws.String(region)})
-	log.Println("2.1")
 	if err != nil {
 		return events.APIGatewayV2CustomAuthorizerSimpleResponse{
 			IsAuthorized: false,
 		}, nil
 	}
-	log.Println("2")
 	dynaClient := dynamodb.New(awsSession)
 	cognitoClient := cognitoidentityprovider.New(awsSession)
 	ROLE_TABLE := os.Getenv("ROLES_TABLE")
-	log.Println("3")
 	//Check for user's role with cognito
 	role, err := FetchUserAttributes(accessToken, cognitoClient)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
-	if err == nil {
-		// Get list of access of Role
-		access, err2 := GetAccessByRole(role, ROLE_TABLE, dynaClient)
-		if err2 != nil {
-			fmt.Println(err)
-		}
-		if err2 == nil {
-			//Check Roles Item if Role provides permission
-			authorised = slices.Contains(access.Access[route], method)
-		}
+	
+	// Get list of access of Role
+	access, err2 := GetAccessByRole(role, ROLE_TABLE, dynaClient)
+	if err2 != nil {
+		log.Println(err)
 	}
-
+	
+	//Check Roles Item if Role provides permission
+	authorised = slices.Contains(access.Access[route], method)
+		
 	return events.APIGatewayV2CustomAuthorizerSimpleResponse{
 		IsAuthorized: authorised,
 	}, nil
@@ -132,6 +125,5 @@ func GetAccessByRole(role, tableName string, dynaClient dynamodbiface.DynamoDBAP
 }
 
 func main() {
-	log.Println("start of main")
 	lambda.Start(handler)
 }

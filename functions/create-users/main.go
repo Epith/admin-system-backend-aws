@@ -196,7 +196,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	// 	return nil, errors.New(cognitoidentityprovider.ErrCodeCodeDeliveryFailureException)
 	// }
 
-	EmailVerification(user.Email)
+	//EmailVerification(user.Email)
 	return user.User, nil
 }
 
@@ -226,7 +226,7 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	log := Log{}
 	log.Log_ID = uuid.NewString()
 	log.User_ID = req.RequestContext.AccountID
-	log.UserAgent = req.Headers["UserAgent"]
+	//log.UserAgent = req.Headers["UserAgent"]
 	fmt.Println(req.Headers)
 	log.TTL = float64(ttlValue)
 	log.Description = "test description"

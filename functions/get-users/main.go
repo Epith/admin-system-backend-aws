@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -12,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"github.com/aws/aws-sdk-go/service/ssm"
 )
 
 type User struct {
@@ -37,7 +39,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	//get variables
 	id := request.QueryStringParameters["id"]
 	region := os.Getenv("AWS_REGION")
-	USER_TABLE := os.Getenv("USER_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -50,6 +51,20 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
+
+	// Create an SSM client
+	svc := ssm.New(awsSession)
+
+	// Get the parameter value
+	paramName := "USER_TABLE"
+	paramValue, err := svc.GetParameter(&ssm.GetParameterInput{
+		Name:           aws.String(paramName),
+		WithDecryption: aws.Bool(true),
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	USER_TABLE := *paramValue.Parameter.Value
 
 	//check if id specified, if yes get single user from dynamo
 	if len(id) > 0 {

@@ -27,6 +27,7 @@ Resources:
           Lambda-Authorizer:
             AuthorizerPayloadFormatVersion: 2.0
             FunctionArn: !GetAtt LambdaAuthorizer.Arn
+            FunctionInvokeRole: arn:aws:iam::163683790602:role/api_gateway_auth_invocation
             Identity:
               Headers:
                 - Authorization
@@ -50,7 +51,7 @@ Resources:
     Properties:
       CodeUri: functions/lambda-authorizer/
       Handler: bootstrap
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaUserLambdaRole
       Environment:
         Variables:
           ROLES_TABLE: roles
@@ -61,7 +62,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/get-makers/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -80,7 +81,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/create-makers/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -94,8 +95,6 @@ Resources:
             POINTS_TABLE: points
             MAKER_TABLE: makers
             LOGS_TABLE: logs
-      Policies:
-        - arn:aws:iam::163683790602:policy/SESEmailActionsPolicy
     Metadata:
       BuildMethod: makefile
 
@@ -103,7 +102,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/get-checkers/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -122,7 +121,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/update-checkers/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -143,7 +142,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/get-points/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -162,7 +161,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/update-points/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -183,7 +182,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/create-points/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -203,7 +202,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/get-users/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -222,7 +221,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/create-users/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaCreateUserLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -235,9 +234,6 @@ Resources:
             USER_TABLE: users
             LOGS_TABLE: logs
             TTL: 1
-      Policies:
-        - arn:aws:iam::163683790602:policy/SESEmailActionsPolicy
-        - arn:aws:iam::163683790602:policy/CognitoAccessPolicy
     Metadata:
       BuildMethod: makefile
 
@@ -245,7 +241,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/update-users/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaUserLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -258,8 +254,6 @@ Resources:
           USER_TABLE: users
           LOGS_TABLE: logs
           TTL: 1
-      Policies:
-        - arn:aws:iam::163683790602:policy/CognitoAccessPolicy
     Metadata:
       BuildMethod: makefile
 
@@ -267,7 +261,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/delete-users/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaUserLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -280,8 +274,6 @@ Resources:
           USER_TABLE: users
           LOGS_TABLE: logs
           TTL: 1
-      Policies:
-        - arn:aws:iam::163683790602:policy/CognitoAccessPolicy
     Metadata:
       BuildMethod: makefile
 
@@ -289,7 +281,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/get-logs/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -307,7 +299,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/get-roles/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -326,7 +318,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/create-roles/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -345,7 +337,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/update-roles/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -364,7 +356,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/delete-roles/
-      Role: arn:aws:iam::163683790602:role/DynamoDBAccessRole
+      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi

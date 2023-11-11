@@ -40,21 +40,12 @@ Resources:
           HostedZoneId: Z01378052RMMURP5MHP9D
           EvaluateTargetHealth: false
 
-  # WebACLAssociation:
-  #   Type: AWS::WAFv2::WebACLAssociation
-  #   Properties:
-  #     ResourceArn: !Ref AscendaApi
-  #     WebACLArn: arn:aws:wafv2:ap-southeast-1:163683790602:regional/webacl/AscendaWebACL/0e1a3b1a-5b1a-4b6e-9b9e-3b0b4b5b4b5b
-
   LambdaAuthorizer:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/lambda-authorizer/
       Handler: bootstrap
       Role: arn:aws:iam::163683790602:role/AscendaUserLambdaRole
-      Environment:
-        Variables:
-          ROLES_TABLE: roles
     Metadata:
       BuildMethod: makefile
 
@@ -70,10 +61,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /makers
             Method: GET
-      Environment: 
-        Variables:
-          MAKER_TABLE: makers
-          LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -89,12 +76,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /makers
             Method: POST
-      Environment: 
-        Variables:
-            USER_TABLE: users
-            POINTS_TABLE: points
-            MAKER_TABLE: makers
-            LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -110,10 +91,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /checkers
             Method: GET
-      Environment: 
-        Variables:
-          MAKER_TABLE: makers
-          LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
   
@@ -129,12 +106,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /checkers
             Method: PUT
-      Environment: 
-        Variables:
-            USER_TABLE: users
-            POINTS_TABLE: points
-            MAKER_TABLE: makers
-            LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -150,10 +121,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /points
             Method: GET
-      Environment: 
-        Variables:
-          POINTS_TABLE: points
-          LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -169,12 +136,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /points
             Method: PUT
-      Environment: 
-        Variables:
-          POINTS_TABLE: points
-          LOGS_TABLE: logs
-          USER_TABLE: users
-          TTL: 1
     Metadata:
       BuildMethod: makefile
   
@@ -190,11 +151,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /points
             Method: POST
-      Environment: 
-        Variables:
-          POINTS_TABLE: points
-          USER_TABLE: users
-          LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -210,10 +166,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /users
             Method: GET
-      Environment: 
-        Variables:
-            USER_TABLE: users
-            LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -229,11 +181,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /users
             Method: POST
-      Environment: 
-        Variables:
-            USER_TABLE: users
-            LOGS_TABLE: logs
-            TTL: 1
     Metadata:
       BuildMethod: makefile
 
@@ -249,11 +196,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /users
             Method: PUT
-      Environment: 
-        Variables:
-          USER_TABLE: users
-          LOGS_TABLE: logs
-          TTL: 1
     Metadata:
       BuildMethod: makefile
 
@@ -269,11 +211,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /users
             Method: DELETE
-      Environment: 
-        Variables:
-          USER_TABLE: users
-          LOGS_TABLE: logs
-          TTL: 1
     Metadata:
       BuildMethod: makefile
 
@@ -289,9 +226,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /logs
             Method: GET
-      Environment: 
-        Variables:
-            LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -307,10 +241,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /roles
             Method: GET
-      Environment: 
-        Variables:
-            ROLES_TABLE: roles
-            LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -326,10 +256,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /roles
             Method: POST
-      Environment: 
-        Variables:
-            ROLES_TABLE: roles
-            LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -345,10 +271,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /roles
             Method: PUT
-      Environment: 
-        Variables:
-            ROLES_TABLE: roles
-            LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 
@@ -364,10 +286,6 @@ Resources:
             ApiId: !Ref AscendaApi
             Path: /roles
             Method: DELETE
-      Environment: 
-        Variables:
-            ROLES_TABLE: roles
-            LOGS_TABLE: logs
     Metadata:
       BuildMethod: makefile
 

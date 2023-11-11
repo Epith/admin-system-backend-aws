@@ -52,19 +52,9 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 	dynaClient := dynamodb.New(awsSession)
 
-	// Create an SSM client
-	svc := ssm.New(awsSession)
-
 	// Get the parameter value
 	paramName := "USER_TABLE"
-	paramValue, err := svc.GetParameter(&ssm.GetParameterInput{
-		Name:           aws.String(paramName),
-		WithDecryption: aws.Bool(true),
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	USER_TABLE := *paramValue.Parameter.Value
+	USER_TABLE := getParameterValue(awsSession, paramName)
 
 	//check if id specified, if yes get single user from dynamo
 	if len(id) > 0 {
@@ -179,4 +169,20 @@ func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 
 func main() {
 	lambda.Start(handler)
+}
+
+func getParameterValue(session *session.Session, paramName string) string {
+	// Create an SSM client
+	svc := ssm.New(session)
+	// Get the parameter value
+	paramValue, err := svc.GetParameter(&ssm.GetParameterInput{
+		Name:           aws.String(paramName),
+		WithDecryption: aws.Bool(true),
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	response := *paramValue.Parameter.Value
+
+	return response
 }

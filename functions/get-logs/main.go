@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -16,15 +15,12 @@ import (
 )
 
 type Log struct {
-	Log_ID          string      `json:"log_id"`
-	Severity        int         `json:"severity"`
-	User_ID         string      `json:"user_id"`
-	Action_Type     int         `json:"action_type"`
-	Resource_Type   string      `json:"resource_type"`
-	Body            interface{} `json:"body"`
-	QueryParameters interface{} `json:"query_parameters"`
-	Error           interface{} `json:"error"`
-	Timestamp       time.Time   `json:"timestamp"`
+	Log_ID      string `json:"log_id"`
+	IP          string `json:"ip"`
+	Description string `json:"description"`
+	UserAgent   string `json:"user_agent"`
+	Timestamp   int64  `json:"timestamp"`
+	TTL         int64  `json:"ttl"`
 }
 
 type ReturnData struct {

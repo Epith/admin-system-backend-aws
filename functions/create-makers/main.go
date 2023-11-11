@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/ses"
+	"github.com/aws/aws-sdk-go/service/ssm"
 )
 
 var (
@@ -47,9 +48,9 @@ type User struct {
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//getting variables
 	region := os.Getenv("AWS_REGION")
-	USER_TABLE := os.Getenv("USER_TABLE")
 	POINTS_TABLE := os.Getenv("POINTS_TABLE")
 	MAKER_TABLE := os.Getenv("MAKER_TABLE")
+	USER_TABLE := os.Getenv("USER_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -61,6 +62,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			Body:       string("Error setting up aws session"),
 		}, nil
 	}
+
 	dynaClient := dynamodb.New(awsSession)
 
 	//calling create maker request to dynamo func
@@ -335,4 +337,20 @@ func sendEmail(recipientEmail string, req events.APIGatewayProxyRequest, dynaCli
 
 	log.Printf("Send email to: %v", recipientEmail)
 	return nil
+}
+
+func getParameterValue(session *session.Session, paramName string) string {
+	// Create an SSM client
+	svc := ssm.New(session)
+	// Get the parameter value
+	paramValue, err := svc.GetParameter(&ssm.GetParameterInput{
+		Name:           aws.String(paramName),
+		WithDecryption: aws.Bool(true),
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	response := *paramValue.Parameter.Value
+
+	return response
 }

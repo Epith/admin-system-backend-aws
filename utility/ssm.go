@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 )
 
-func GetParameterValue(session *session.Session, paramName string) string {
+func GetParameterValue(session *session.Session, paramName string) (*ssm.GetParameterOutput, error) {
 	// Create an SSM client
 	svc := ssm.New(session)
 	// Get the parameter value
@@ -19,7 +19,6 @@ func GetParameterValue(session *session.Session, paramName string) string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	response := *paramValue.Parameter.Value
 
-	return response
+	return paramValue, err
 }

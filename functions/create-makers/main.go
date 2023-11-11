@@ -1,8 +1,8 @@
 package main
 
 import (
-	"ascenda/functions/utility"
 	"ascenda/types"
+	"ascenda/utility"
 	"encoding/json"
 	"errors"
 	"log"
@@ -16,20 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/ses"
-	"github.com/aws/aws-sdk-go/service/ssm"
-)
-
-var (
-	ErrorCouldNotMarshalItem     = "could not marshal item"
-	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
-	ErrorInvalidMakerData        = "invalid maker data"
-	ErrorInvalidPointsID         = "invalid points id"
-	ErrorInvalidResourceType     = "resource type is invalid"
-	ErrorUserDoesNotExist        = "target user does not exist"
-	ErrorPointsDoesNotExist      = "target points does not exist"
-	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
-	ErrorFailedToFetchRecord     = "failed to fetch record"
-	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -51,13 +37,34 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Get the parameter value
 	paramUser := "USER_TABLE"
-	USER_TABLE := utility.GetParameterValue(awsSession, paramUser)
+	outputUser, err := utility.GetParameterValue(awsSession, paramUser)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting user table parameter store"),
+		}, nil
+	}
+	USER_TABLE := *outputUser.Parameter.Value
 
 	paramPoints := "POINTS_TABLE"
-	POINTS_TABLE := utility.GetParameterValue(awsSession, paramPoints)
+	outputPoints, err := utility.GetParameterValue(awsSession, paramPoints)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting points table parameter store"),
+		}, nil
+	}
+	POINTS_TABLE := *outputPoints.Parameter.Value
 
 	paramMaker := "MAKER_TABLE"
-	MAKER_TABLE := utility.GetParameterValue(awsSession, paramMaker)
+	outputMaker, err := utility.GetParameterValue(awsSession, paramMaker)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting maker table parameter store"),
+		}, nil
+	}
+	MAKER_TABLE := *outputMaker.Parameter.Value
 
 	//calling create maker request to dynamo func
 	res, err := CreateMakerRequest(request, MAKER_TABLE, USER_TABLE, POINTS_TABLE, dynaClient)
@@ -85,24 +92,24 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 
 	//marshall body to maker request struct
 	if err := json.Unmarshal([]byte(req.Body), &postMakerRequest); err != nil {
-		return nil, errors.New(ErrorInvalidMakerData)
+		return nil, errors.New(types.ErrorInvalidMakerData)
 	}
 
 	if postMakerRequest.MakerUUID == "" {
-		err := errors.New(ErrorInvalidMakerData)
+		err := errors.New(types.ErrorInvalidMakerData)
 		return nil, err
 	}
 
 	_, err := FetchUserByID(postMakerRequest.MakerUUID, req, userTableName, dynaClient)
 	if err != nil {
-		return nil, errors.New(ErrorUserDoesNotExist)
+		return nil, errors.New(types.ErrorUserDoesNotExist)
 	}
 
 	if postMakerRequest.ResourceType == "user" {
 		//marshall body to point struct
 		var userData types.User
 		if err := json.Unmarshal(postMakerRequest.RequestData, &userData); err != nil {
-			return nil, errors.New(ErrorCouldNotMarshalItem)
+			return nil, errors.New(types.ErrorCouldNotMarshalItem)
 		}
 
 		// check if user exist
@@ -114,7 +121,7 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 		for _, role := range postMakerRequest.CheckerRoles {
 			users, err := FetchUsersByRoles(role, req, userTableName, dynaClient)
 			if err != nil {
-				return nil, errors.New(ErrorFailedToFetchRecord)
+				return nil, errors.New(types.ErrorFailedToFetchRecord)
 			}
 			if len(users) > 0 {
 				for _, user := range users {
@@ -136,23 +143,23 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 		//marshall body to point struct
 		var pointsData types.UserPoint
 		if err := json.Unmarshal(postMakerRequest.RequestData, &pointsData); err != nil {
-			return nil, errors.New(ErrorCouldNotMarshalItem)
+			return nil, errors.New(types.ErrorCouldNotMarshalItem)
 		}
 		// check if points exist
 		_, err = FetchUserPoint(pointsData.User_ID, req, pointsTableName, dynaClient)
 		if err != nil {
-			return nil, errors.New(ErrorPointsDoesNotExist)
+			return nil, errors.New(types.ErrorPointsDoesNotExist)
 		}
 
 		if pointsData.Points_ID == "" {
-			return nil, errors.New(ErrorInvalidPointsID)
+			return nil, errors.New(types.ErrorInvalidPointsID)
 		}
 
 		// send out email
 		for _, role := range postMakerRequest.CheckerRoles {
 			users, err := FetchUsersByRoles(role, req, userTableName, dynaClient)
 			if err != nil {
-				return nil, errors.New(ErrorFailedToFetchRecord)
+				return nil, errors.New(types.ErrorFailedToFetchRecord)
 			}
 			if len(users) > 0 {
 				for _, user := range users {
@@ -170,7 +177,7 @@ func CreateMakerRequest(req events.APIGatewayProxyRequest, makerTableName, userT
 		return utility.BatchWriteToDynamoDB(roleCount, makerRequests, makerTableName, dynaClient)
 	}
 
-	return nil, errors.New(ErrorInvalidResourceType)
+	return nil, errors.New(types.ErrorInvalidResourceType)
 }
 
 func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.User, error) {
@@ -187,12 +194,12 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 	result, err := dynaClient.GetItem(input)
 
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecordID)
+		return nil, errors.New(types.ErrorFailedToFetchRecordID)
 	}
 	item := new(types.User)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
+		return nil, errors.New(types.ErrorFailedToUnmarshalRecord)
 	}
 
 	return item, nil
@@ -215,12 +222,12 @@ func FetchUsersByRoles(role string, req events.APIGatewayProxyRequest, tableName
 	result, err := dynaClient.Query(input)
 
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecordID)
+		return nil, errors.New(types.ErrorFailedToFetchRecordID)
 	}
 	users := new([]types.User)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, users)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
+		return nil, errors.New(types.ErrorFailedToUnmarshalRecord)
 	}
 
 	return *users, nil
@@ -244,7 +251,7 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 
 	result, err := dynaClient.Query(input)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecord)
+		return nil, errors.New(types.ErrorFailedToFetchRecord)
 	}
 
 	if result.Items == nil {
@@ -254,7 +261,7 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 	item := new([]types.UserPoint)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
+		return nil, errors.New(types.ErrorFailedToUnmarshalRecord)
 	}
 
 	return item, nil
@@ -331,20 +338,4 @@ func sendEmail(recipientEmail string, req events.APIGatewayProxyRequest, dynaCli
 
 	log.Printf("Send email to: %v", recipientEmail)
 	return nil
-}
-
-func getParameterValue(session *session.Session, paramName string) string {
-	// Create an SSM client
-	svc := ssm.New(session)
-	// Get the parameter value
-	paramValue, err := svc.GetParameter(&ssm.GetParameterInput{
-		Name:           aws.String(paramName),
-		WithDecryption: aws.Bool(true),
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	response := *paramValue.Parameter.Value
-
-	return response
 }

@@ -1,0 +1,28 @@
+package types
+
+var (
+	ErrorCouldNotMarshalItem     = "could not marshal item"
+	ErrorInvalidMakerData        = "invalid maker data"
+	ErrorInvalidPointsID         = "invalid points id"
+	ErrorInvalidResourceType     = "resource type is invalid"
+	ErrorUserDoesNotExist        = "target user does not exist"
+	ErrorPointsDoesNotExist      = "target points does not exist"
+	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
+	ErrorFailedToFetchRecord     = "failed to fetch record"
+	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
+	ErrorInvalidUserData         = "invalid user data"
+	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
+	ErrorInvalidRoleData         = "invalid role data"
+	ErrorInvalidRole             = "invalid role"
+	ErrorInvalidEmail            = "invalid email"
+	ErrorInvalidFirstName        = "invalid first name"
+	ErrorInvalidLastName         = "invalid last name"
+	ErrorRoleDoesNotExist        = "role does not exist"
+	ErrorCouldNotDeleteItem      = "could not delete item"
+	ErrorFailedToUnmarshal       = "failed to unmarshal record from db"
+	ErrorCouldNotQueryDB         = "could not query db"
+	ErrorMakerReqDoesNotExist  = "maker request id does not exist"
+	ErrorInvalidUserID           = "invalid user id"
+	ErrorInvalidDecision         = "invalid decision"
+	ErrorMakerDoesNotExist       = "target maker_id does not exist"
+)

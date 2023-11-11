@@ -1,14 +1,12 @@
 package main
 
 import (
-	"ascenda/functions/utility"
 	"ascenda/types"
+	"ascenda/utility"
 	"encoding/json"
 	"errors"
 	"log"
 	"os"
-	"strconv"
-	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -17,19 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"github.com/google/uuid"
-)
-
-var (
-	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
-	ErrorFailedToFetchRecord     = "failed to fetch record"
-	ErrorInvalidUserData         = "invalid user data"
-	ErrorInvalidPointsID         = "invalid points id"
-	ErrorCouldNotMarshalItem     = "could not marshal item"
-	ErrorCouldNotDeleteItem      = "could not delete item"
-	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
-	ErrorUserDoesNotExist        = "user.User does not exist"
-	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -51,16 +36,44 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Get the parameter value
 	paramUser := "USER_TABLE"
-	USER_TABLE := utility.GetParameterValue(awsSession, paramUser)
+	outputUser, err := utility.GetParameterValue(awsSession, paramUser)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting user table parameter store"),
+		}, nil
+	}
+	USER_TABLE := *outputUser.Parameter.Value
 
 	paramTTL := "TTL"
-	TTL := utility.GetParameterValue(awsSession, paramTTL)
+	outputTTL, err := utility.GetParameterValue(awsSession, paramTTL)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting ttl parameter store"),
+		}, nil
+	}
+	TTL := *outputTTL.Parameter.Value
 
 	paramLog := "LOGS_TABLE"
-	LOGS_TABLE := utility.GetParameterValue(awsSession, paramLog)
+	outputLogs, err := utility.GetParameterValue(awsSession, paramLog)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting logs table parameter store"),
+		}, nil
+	}
+	LOGS_TABLE := *outputLogs.Parameter.Value
 
 	paramPoints := "POINTS_TABLE"
-	POINTS_TABLE := utility.GetParameterValue(awsSession, paramPoints)
+	outputPoints, err := utility.GetParameterValue(awsSession, paramPoints)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting points table parameter store"),
+		}, nil
+	}
+	POINTS_TABLE := *outputPoints.Parameter.Value
 
 	//checking if user id is specified, if yes then update user in dynamo func
 	if len(user_id) > 0 {
@@ -94,19 +107,19 @@ func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableNam
 	oldPoints := 0
 	//unmarshal body into userpoint struct
 	if err := json.Unmarshal([]byte(req.Body), &userpoint); err != nil {
-		return nil, errors.New(ErrorInvalidUserData)
+		return nil, errors.New(types.ErrorInvalidUserData)
 	}
 	userpoint.User_ID = user_id
 
 	if userpoint.Points_ID == "" {
-		err := errors.New(ErrorInvalidPointsID)
+		err := errors.New(types.ErrorInvalidPointsID)
 		return nil, err
 	}
 
 	//checking if userpoint exist
 	results, err := FetchUserPoint(user_id, req, tableName, dynaClient)
 	if err != nil {
-		return nil, errors.New(ErrorInvalidUserData)
+		return nil, errors.New(types.ErrorInvalidUserData)
 	}
 
 	var result = new(types.UserPoint)
@@ -118,12 +131,12 @@ func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableNam
 	}
 
 	if result.Points_ID != userpoint.Points_ID {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		return nil, errors.New(types.ErrorCouldNotMarshalItem)
 	}
 
 	av, err := dynamodbattribute.MarshalMap(result)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		return nil, errors.New(types.ErrorCouldNotMarshalItem)
 	}
 
 	//updating user point in dynamo
@@ -133,11 +146,11 @@ func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableNam
 	}
 	_, err = dynaClient.PutItem(input)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotDynamoPutItem)
+		return nil, errors.New(types.ErrorCouldNotDynamoPutItem)
 	}
 
 	//logging
-	if logErr := sendLogs(req, dynaClient, userTable, logTable, ttl, user_id, oldPoints, userpoint.Points); logErr != nil {
+	if logErr := utility.SendUpdatePointLogs(req, dynaClient, userTable, logTable, ttl, user_id, oldPoints, userpoint.Points); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
 
@@ -162,46 +175,17 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 
 	result, err := dynaClient.Query(input)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecord)
+		return nil, errors.New(types.ErrorFailedToFetchRecord)
 	}
 
 	if result.Items == nil {
-		return nil, errors.New(ErrorUserDoesNotExist)
+		return nil, errors.New(types.ErrorUserDoesNotExist)
 	}
 
 	item := new([]types.UserPoint)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
-	}
-
-	return item, nil
-}
-
-func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.User, error) {
-	//get single user from dynamo
-	input := &dynamodb.GetItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			"user_id": {
-				S: aws.String(id),
-			},
-		},
-		TableName: aws.String(tableName),
-	}
-
-	result, err := dynaClient.GetItem(input)
-	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecordID)
-	}
-
-	if result.Item == nil {
-		return nil, errors.New("user does not exist")
-	}
-
-	item := new(types.User)
-	err = dynamodbattribute.UnmarshalMap(result.Item, item)
-	if err != nil {
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
+		return nil, errors.New(types.ErrorFailedToUnmarshalRecord)
 	}
 
 	return item, nil
@@ -209,56 +193,4 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 
 func main() {
 	lambda.Start(handler)
-}
-
-func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, userTable string, logTable, ttl string,
-	userID string, oldPoints int, newPoints int) error {
-	// Calculate the TTL value (one month from now)
-	ttlNum, err := strconv.Atoi(ttl)
-	if err != nil {
-		return errors.New("invalid ttl")
-	}
-
-	//get updated user points name
-	res, err := FetchUserByID(userID, req, userTable, dynaClient)
-	if err != nil {
-		log.Println(err)
-		return errors.New("failed to get user")
-	}
-
-	now := time.Now()
-	oneWeekFromNow := now.AddDate(0, 0, ttlNum)
-	ttlValue := oneWeekFromNow.Unix()
-
-	//requester
-	requester := req.QueryStringParameters["requester"]
-
-	//create log struct
-	log := types.Log{}
-	log.Log_ID = uuid.NewString()
-	log.IP = req.Headers["x-forwarded-for"]
-	log.UserAgent = req.Headers["user-agent"]
-	log.TTL = ttlValue
-
-	stringOld := strconv.Itoa(oldPoints)
-	stringNew := strconv.Itoa(newPoints)
-
-	log.Description = requester + " adjusted points of " + res.FirstName + " " + res.LastName + " from " + stringOld + " to " + stringNew
-	log.Timestamp = time.Now().Unix()
-	av, err := dynamodbattribute.MarshalMap(log)
-
-	if err != nil {
-		return errors.New("failed to marshal log")
-	}
-
-	input := &dynamodb.PutItemInput{
-		Item:      av,
-		TableName: aws.String(logTable),
-	}
-	_, err = dynaClient.PutItem(input)
-	if err != nil {
-		return errors.New("Could not dynamo put")
-	}
-
-	return nil
 }

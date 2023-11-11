@@ -1,8 +1,8 @@
 package main
 
 import (
-	"ascenda/functions/utility"
 	"ascenda/types"
+	"ascenda/utility"
 	"encoding/json"
 	"errors"
 	"os"
@@ -14,12 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-)
-
-var (
-	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
-	ErrorFailedToFetchRecord     = "failed to fetch record"
-	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -41,7 +35,14 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Get the parameter value
 	paramLog := "LOGS_TABLE"
-	LOGS_TABLE := utility.GetParameterValue(awsSession, paramLog)
+	outputLogs, err := utility.GetParameterValue(awsSession, paramLog)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting logs table parameter store"),
+		}, nil
+	}
+	LOGS_TABLE := *outputLogs.Parameter.Value
 
 	//check if id specified, if yes get single log from dynamo
 	if len(id) > 0 {
@@ -92,7 +93,7 @@ func FetchLogByID(id string, req events.APIGatewayProxyRequest, tableName string
 
 	result, err := dynaClient.GetItem(input)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecordID)
+		return nil, errors.New(types.ErrorFailedToFetchRecordID)
 	}
 
 	if result.Item == nil {
@@ -102,7 +103,7 @@ func FetchLogByID(id string, req events.APIGatewayProxyRequest, tableName string
 	item := new(types.Log)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
+		return nil, errors.New(types.ErrorFailedToUnmarshalRecord)
 	}
 
 	return item, nil
@@ -130,7 +131,7 @@ func FetchLogs(req events.APIGatewayProxyRequest, tableName string, dynaClient d
 
 	result, err := dynaClient.Scan(input)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecord)
+		return nil, errors.New(types.ErrorFailedToFetchRecord)
 	}
 
 	for _, i := range result.Items {

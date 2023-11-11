@@ -1,7 +1,8 @@
 package main
 
 import (
-	"ascenda/functions/utility"
+	"ascenda/types"
+	"ascenda/utility"
 	"errors"
 	"os"
 
@@ -11,14 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-)
-
-var (
-	ErrorInvalidRole             = "invalid Role"
-	ErrorCouldNotDeleteItem      = "could not delete item"
-	ErrorRoleDoesNotExist        = "role does not exist"
-	ErrorFailedToFetchRecordID   = "failed to fetch record by role"
-	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -40,7 +33,14 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Get the parameter value
 	paramRole := "ROLES_TABLE"
-	ROLES_TABLE := utility.GetParameterValue(awsSession, paramRole)
+	outputRoles, err := utility.GetParameterValue(awsSession, paramRole)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting roles table parameter store"),
+		}, nil
+	}
+	ROLES_TABLE := *outputRoles.Parameter.Value
 
 	//check if role is supplied, if yes call delete role dynamo func
 	if len(role) > 0 {
@@ -76,11 +76,11 @@ func DeleteRole(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 	result, err := dynaClient.GetItem(checkRole)
 	if err != nil {
-		return errors.New(ErrorFailedToFetchRecordID)
+		return errors.New(types.ErrorFailedToFetchRecordID)
 	}
 
 	if result.Item == nil {
-		return errors.New(ErrorRoleDoesNotExist)
+		return errors.New(types.ErrorRoleDoesNotExist)
 	}
 
 	//attempt to delete role in dynamo
@@ -94,7 +94,7 @@ func DeleteRole(id string, req events.APIGatewayProxyRequest, tableName string, 
 	}
 	_, err = dynaClient.DeleteItem(input)
 	if err != nil {
-		return errors.New(ErrorCouldNotDeleteItem)
+		return errors.New(types.ErrorCouldNotDeleteItem)
 	}
 
 	return nil

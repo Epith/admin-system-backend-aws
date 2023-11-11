@@ -1,8 +1,8 @@
 package main
 
 import (
-	"ascenda/functions/utility"
 	"ascenda/types"
+	"ascenda/utility"
 	"encoding/json"
 	"errors"
 	"os"
@@ -14,16 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-)
-
-var (
-	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
-	ErrorInvalidRoleData         = "invalid role data"
-	ErrorInvalidRole             = "invalid role"
-	ErrorInvalidAccess           = "invalid access"
-	ErrorInvalidUUID             = "invalid UUID"
-	ErrorCouldNotMarshalItem     = "could not marshal item"
-	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -44,7 +34,14 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Get the parameter value
 	paramRole := "ROLES_TABLE"
-	ROLES_TABLE := utility.GetParameterValue(awsSession, paramRole)
+	outputRoles, err := utility.GetParameterValue(awsSession, paramRole)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting roles table parameter store"),
+		}, nil
+	}
+	ROLES_TABLE := *outputRoles.Parameter.Value
 
 	//calling create role in dynamo func
 	res, err := CreateRole(request, ROLES_TABLE, dynaClient)
@@ -71,13 +68,13 @@ func CreateRole(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 
 	//marshal body into role
 	if err := json.Unmarshal([]byte(req.Body), &role); err != nil {
-		err = errors.New(ErrorInvalidRoleData)
+		err = errors.New(types.ErrorInvalidRoleData)
 		return nil, err
 	}
 
 	//error checks
 	if len(role.Role) == 0 {
-		err := errors.New(ErrorInvalidRole)
+		err := errors.New(types.ErrorInvalidRole)
 		return nil, err
 	}
 
@@ -85,7 +82,7 @@ func CreateRole(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	av, err := dynamodbattribute.MarshalMap(role)
 
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		return nil, errors.New(types.ErrorCouldNotMarshalItem)
 	}
 
 	input := &dynamodb.PutItemInput{
@@ -95,7 +92,7 @@ func CreateRole(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 
 	_, err = dynaClient.PutItem(input)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotDynamoPutItem)
+		return nil, errors.New(types.ErrorCouldNotDynamoPutItem)
 	}
 
 	return &role, nil

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"os"
 
-	"ascenda/functions/utility"
 	"ascenda/types"
+	"ascenda/utility"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -15,11 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-)
-
-var (
-	ErrorCouldNotMarshalItem = "could not marshal item"
-	ErrorCouldNotQueryDB     = "could not query db"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -42,7 +37,14 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	//get parameter value
 	paramMaker := "MAKER_TABLE"
-	MAKER_TABLE := utility.GetParameterValue(awsSession, paramMaker)
+	outputMaker, err := utility.GetParameterValue(awsSession, paramMaker)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting maker table parameter store"),
+		}, nil
+	}
+	MAKER_TABLE := *outputMaker.Parameter.Value
 
 	// filter by client role and maker request status
 	if len(role) > 0 && len(status) > 0 {
@@ -83,7 +85,7 @@ func FetchMakerRequestsByCheckerRoleAndStatus(checker_role, requestStatus, table
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotQueryDB)
+		return nil, errors.New(types.ErrorCouldNotQueryDB)
 	}
 
 	makerRequests := new([]types.MakerRequest)

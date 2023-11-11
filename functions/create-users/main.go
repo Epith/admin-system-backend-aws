@@ -231,7 +231,8 @@ func IsEmailValid(email string) bool {
 	return true
 }
 
-func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, logTABLE string, ttl string, firstName string, lastName string, role string) error {
+func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, logTABLE string, ttl string,
+	firstName string, lastName string, role string) error {
 	// Calculate the TTL value (one month from now)
 	ttlNum, err := strconv.Atoi(ttl)
 	if err != nil {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ascenda/functions/utility"
 	"encoding/json"
 	"errors"
 	"os"
@@ -35,7 +36,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	//get variables
 	user_id := request.QueryStringParameters["id"]
 	region := os.Getenv("AWS_REGION")
-	POINTS_TABLE := os.Getenv("POINTS_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -48,6 +48,10 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
+
+	//get parameter value
+	paramPoints := "POINTS_TABLE"
+	POINTS_TABLE := utility.GetParameterValue(awsSession, paramPoints)
 
 	//check if user id is specified, if yes call get user point from dynamo func
 	if len(user_id) > 0 {

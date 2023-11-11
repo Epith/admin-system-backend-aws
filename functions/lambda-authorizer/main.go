@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ascenda/functions/utility"
 	"errors"
 	"log"
 	"os"
@@ -50,7 +51,9 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGa
 	}
 	dynaClient := dynamodb.New(awsSession)
 	cognitoClient := cognitoidentityprovider.New(awsSession)
-	ROLE_TABLE := os.Getenv("ROLES_TABLE")
+	// Get the parameter value
+	paramRole := "ROLES_TABLE"
+	ROLES_TABLE := utility.GetParameterValue(awsSession, paramRole)
 	//Check for user's role with cognito
 	role, err := FetchUserAttributes(accessToken, cognitoClient)
 	if err != nil {
@@ -61,7 +64,7 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGa
 	}
 
 	// Get list of access of Role
-	access, err2 := GetAccessByRole(role, ROLE_TABLE, dynaClient)
+	access, err2 := GetAccessByRole(role, ROLES_TABLE, dynaClient)
 	if err2 != nil {
 		log.Println(err)
 		return events.APIGatewayV2CustomAuthorizerSimpleResponse{

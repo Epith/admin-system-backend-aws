@@ -47,7 +47,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	dynaClient := dynamodb.New(awsSession)
 
 	// Get the parameter value
-	paramRole := "USER_TABLE"
+	paramRole := "ROLES_TABLE"
 	ROLES_TABLE := utility.GetParameterValue(awsSession, paramRole)
 
 	//calling create role in dynamo func

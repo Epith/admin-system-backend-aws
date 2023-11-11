@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ascenda/functions/utility"
 	"encoding/json"
 	"errors"
 	"os"
@@ -38,7 +39,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	//get variables
 	id := request.QueryStringParameters["id"]
 	region := os.Getenv("AWS_REGION")
-	LOGS_TABLE := os.Getenv("LOGS_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -51,6 +51,10 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
+
+	// Get the parameter value
+	paramLog := "LOGS_TABLE"
+	LOGS_TABLE := utility.GetParameterValue(awsSession, paramLog)
 
 	//check if id specified, if yes get single log from dynamo
 	if len(id) > 0 {

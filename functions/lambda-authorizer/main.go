@@ -2,6 +2,7 @@ package main
 
 import (
 	"ascenda/functions/utility"
+	"ascenda/types"
 	"errors"
 	"log"
 	"os"
@@ -22,19 +23,6 @@ var (
 	ErrorFailedToFetchRecord     = "failed to fetch record"
 	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
 )
-
-type Attributes struct {
-	User_ID        string `json:"Username"`
-	UserAttributes []struct {
-		Name  string `json:"Name"`
-		Value string `json:"Value"`
-	} `json:"UserAttributes"`
-}
-
-type Role struct {
-	Role   string              `json:"role"`
-	Access map[string][]string `json:"access"`
-}
 
 func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGatewayV2CustomAuthorizerSimpleResponse, error) {
 	authorised := false
@@ -103,7 +91,7 @@ func FetchUserAttributes(accessToken string, cognitoClient *cognitoidentityprovi
 	return role, nil
 }
 
-func GetAccessByRole(role, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*Role, error) {
+func GetAccessByRole(role, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.Role, error) {
 	input := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
 			"role": {
@@ -118,7 +106,7 @@ func GetAccessByRole(role, tableName string, dynaClient dynamodbiface.DynamoDBAP
 		return nil, errors.New(ErrorFailedToFetchRecordID)
 	}
 
-	item := new(Role)
+	item := new(types.Role)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)

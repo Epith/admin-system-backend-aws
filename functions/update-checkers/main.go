@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"ascenda/functions/utility"
+	"ascenda/types"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -35,27 +36,6 @@ var (
 	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
 )
 
-type DecisionBody struct {
-	RequestId   string `json:"request_id"`
-	CheckerRole string `json:"checker_role"`
-	CheckerId   string `json:"checker_id"`
-	Decision    string `json:"decision"`
-}
-
-type UserPoint struct {
-	User_ID   string `json:"user_id"`
-	Points_ID string `json:"points_id"`
-	Points    int    `json:"points"`
-}
-
-type User struct {
-	Email     string `json:"email"`
-	User_ID   string `json:"user_id"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Role      string `json:"role"`
-}
-
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//getting variables
 	region := os.Getenv("AWS_REGION")
@@ -83,7 +63,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	MAKER_TABLE := utility.GetParameterValue(awsSession, paramMaker)
 
 	// unmarshal json body into DecisionBody
-	var decisionBody DecisionBody
+	var decisionBody types.DecisionBody
 
 	if err := json.Unmarshal([]byte(request.Body), &decisionBody); err != nil {
 		return events.APIGatewayProxyResponse{
@@ -120,7 +100,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 func MakerRequestDecision(reqId, checkerRole, checkerUUID, decision, makerTableName, userTableName, pointsTableName string,
 	req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) (
-	[]utility.ReturnMakerRequest,
+	[]types.ReturnMakerRequest,
 	error,
 ) {
 	currentMakerRequest, err := FetchMakerRequestsByReqIdAndCheckerRole(reqId, checkerRole, makerTableName, req, dynaClient)
@@ -136,7 +116,7 @@ func MakerRequestDecision(reqId, checkerRole, checkerUUID, decision, makerTableN
 
 		// if maker request to change user table
 		if resourceType == "user" {
-			var userData User
+			var userData types.User
 			if err := json.Unmarshal(currentMakerRequest[0].RequestData, &userData); err != nil {
 				return nil, errors.New(ErrorFailedToUnmarshalRecord)
 			}
@@ -157,7 +137,7 @@ func MakerRequestDecision(reqId, checkerRole, checkerUUID, decision, makerTableN
 
 			// if maker request to change points table
 		} else if resourceType == "points" {
-			var pointsData UserPoint
+			var pointsData types.UserPoint
 			if err := json.Unmarshal(currentMakerRequest[0].RequestData, &pointsData); err != nil {
 				return nil, errors.New(ErrorCouldNotMarshalItem)
 			}
@@ -199,7 +179,7 @@ func MakerRequestDecision(reqId, checkerRole, checkerUUID, decision, makerTableN
 	return retMakerRequest, nil
 }
 
-func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.MakerRequest, error) {
+func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]types.MakerRequest, error) {
 	queryInput := &dynamodb.QueryInput{
 		TableName:              aws.String(tableName),
 		KeyConditionExpression: aws.String("req_id = :req_id"),
@@ -217,7 +197,7 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 	if len(result.Items) == 0 {
 		return nil, errors.New(ErrorMakerDoesNotExist)
 	}
-	makerRequests := new([]utility.MakerRequest)
+	makerRequests := new([]types.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
 		return nil, errors.New(ErrorCouldNotMarshalItem)
@@ -226,7 +206,7 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 	return *makerRequests, nil
 }
 
-func FetchMakerRequestsByReqIdAndCheckerRole(reqID, checkerRole, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.MakerRequest, error) {
+func FetchMakerRequestsByReqIdAndCheckerRole(reqID, checkerRole, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]types.MakerRequest, error) {
 	queryInput := &dynamodb.QueryInput{
 		TableName:              aws.String(tableName),
 		KeyConditionExpression: aws.String("req_id = :req_id AND checker_role = :checker_role"),
@@ -242,7 +222,7 @@ func FetchMakerRequestsByReqIdAndCheckerRole(reqID, checkerRole, tableName strin
 		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
-	makerRequests := new([]utility.MakerRequest)
+	makerRequests := new([]types.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 
 	if err != nil {
@@ -256,7 +236,7 @@ func FetchMakerRequestsByReqIdAndCheckerRole(reqID, checkerRole, tableName strin
 	return *makerRequests, nil
 }
 
-func UpdateUser(user User, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
+func UpdateUser(user types.User, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.User, error) {
 	if user.User_ID == "" {
 		err := errors.New(ErrorInvalidUserID)
 		return nil, err
@@ -299,7 +279,7 @@ func UpdateUser(user User, req events.APIGatewayProxyRequest, tableName string, 
 	return &user, nil
 }
 
-func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
+func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.User, error) {
 	//get single user from dynamo
 	input := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
@@ -319,7 +299,7 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 		return nil, errors.New("user does not exist")
 	}
 
-	item := new(User)
+	item := new(types.User)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
@@ -328,7 +308,7 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 	return item, nil
 }
 
-func UpdateUserPoint(userpoint UserPoint, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
+func UpdateUserPoint(userpoint types.UserPoint, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.UserPoint, error) {
 	// check if points id is empty
 	if userpoint.Points_ID == "" {
 		err := errors.New(ErrorInvalidPointsID)
@@ -341,7 +321,7 @@ func UpdateUserPoint(userpoint UserPoint, req events.APIGatewayProxyRequest, tab
 		return nil, errors.New(ErrorInvalidUserData)
 	}
 
-	var result = new(UserPoint)
+	var result = new(types.UserPoint)
 	for _, v := range *results {
 		if v.Points_ID == userpoint.Points_ID {
 			result = &userpoint
@@ -370,7 +350,7 @@ func UpdateUserPoint(userpoint UserPoint, req events.APIGatewayProxyRequest, tab
 	return result, nil
 }
 
-func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]UserPoint, error) {
+func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]types.UserPoint, error) {
 	//getting single single user point
 	input := &dynamodb.QueryInput{
 		TableName: aws.String(tableName),
@@ -395,7 +375,7 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 		return nil, errors.New("user point does not exist")
 	}
 
-	item := new([]UserPoint)
+	item := new([]types.UserPoint)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
 	if err != nil {
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)

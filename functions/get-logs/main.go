@@ -2,6 +2,7 @@ package main
 
 import (
 	"ascenda/functions/utility"
+	"ascenda/types"
 	"encoding/json"
 	"errors"
 	"os"
@@ -14,20 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
-
-type Log struct {
-	Log_ID      string `json:"log_id"`
-	IP          string `json:"ip"`
-	Description string `json:"description"`
-	UserAgent   string `json:"user_agent"`
-	Timestamp   int64  `json:"timestamp"`
-	TTL         int64  `json:"ttl"`
-}
-
-type ReturnData struct {
-	Data []Log  `json:"data"`
-	Key  string `json:"key"`
-}
 
 var (
 	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
@@ -92,7 +79,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func FetchLogByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*Log, error) {
+func FetchLogByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.Log, error) {
 	//get single log from dynamo
 	input := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
@@ -112,7 +99,7 @@ func FetchLogByID(id string, req events.APIGatewayProxyRequest, tableName string
 		return nil, errors.New("log does not exist")
 	}
 
-	item := new(Log)
+	item := new(types.Log)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
@@ -121,13 +108,13 @@ func FetchLogByID(id string, req events.APIGatewayProxyRequest, tableName string
 	return item, nil
 }
 
-func FetchLogs(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*ReturnData, error) {
+func FetchLogs(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.ReturnLogData, error) {
 	//get all logs with pagination of limit 100
 	key := req.QueryStringParameters["key"]
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
 
-	item := new([]Log)
-	itemWithKey := new(ReturnData)
+	item := new([]types.Log)
+	itemWithKey := new(types.ReturnLogData)
 
 	input := &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
@@ -147,7 +134,7 @@ func FetchLogs(req events.APIGatewayProxyRequest, tableName string, dynaClient d
 	}
 
 	for _, i := range result.Items {
-		logItem := new(Log)
+		logItem := new(types.Log)
 		err := dynamodbattribute.UnmarshalMap(i, logItem)
 		if err != nil {
 			return nil, err

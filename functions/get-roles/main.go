@@ -1,7 +1,7 @@
 package main
 
 import (
-	"ascenda/functions/utility"
+	"ascenda/utility"
 	"ascenda/types"
 	"encoding/json"
 	"errors"

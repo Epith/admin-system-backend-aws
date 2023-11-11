@@ -1,7 +1,7 @@
 package main
 
 import (
-	"ascenda/functions/utility"
+	"ascenda/utility"
 	"errors"
 	"os"
 

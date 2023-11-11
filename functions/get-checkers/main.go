@@ -5,8 +5,8 @@ import (
 	"errors"
 	"os"
 
-	"ascenda/functions/utility"
 	"ascenda/types"
+	"ascenda/utility"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"

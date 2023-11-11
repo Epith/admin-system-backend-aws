@@ -1,14 +1,12 @@
 package main
 
 import (
-	"ascenda/functions/utility"
 	"ascenda/types"
+	"ascenda/utility"
 	"encoding/json"
 	"errors"
 	"log"
 	"os"
-	"strconv"
-	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -17,7 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"github.com/google/uuid"
 )
 
 var (
@@ -137,7 +134,7 @@ func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableNam
 	}
 
 	//logging
-	if logErr := sendLogs(req, dynaClient, userTable, logTable, ttl, user_id, oldPoints, userpoint.Points); logErr != nil {
+	if logErr := utility.SendUpdatePointLogs(req, dynaClient, userTable, logTable, ttl, user_id, oldPoints, userpoint.Points); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
 
@@ -178,87 +175,6 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 	return item, nil
 }
 
-func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.User, error) {
-	//get single user from dynamo
-	input := &dynamodb.GetItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			"user_id": {
-				S: aws.String(id),
-			},
-		},
-		TableName: aws.String(tableName),
-	}
-
-	result, err := dynaClient.GetItem(input)
-	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecordID)
-	}
-
-	if result.Item == nil {
-		return nil, errors.New("user does not exist")
-	}
-
-	item := new(types.User)
-	err = dynamodbattribute.UnmarshalMap(result.Item, item)
-	if err != nil {
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
-	}
-
-	return item, nil
-}
-
 func main() {
 	lambda.Start(handler)
-}
-
-func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, userTable string, logTable, ttl string,
-	userID string, oldPoints int, newPoints int) error {
-	// Calculate the TTL value (one month from now)
-	ttlNum, err := strconv.Atoi(ttl)
-	if err != nil {
-		return errors.New("invalid ttl")
-	}
-
-	//get updated user points name
-	res, err := FetchUserByID(userID, req, userTable, dynaClient)
-	if err != nil {
-		log.Println(err)
-		return errors.New("failed to get user")
-	}
-
-	now := time.Now()
-	oneWeekFromNow := now.AddDate(0, 0, ttlNum)
-	ttlValue := oneWeekFromNow.Unix()
-
-	//requester
-	requester := req.QueryStringParameters["requester"]
-
-	//create log struct
-	log := types.Log{}
-	log.Log_ID = uuid.NewString()
-	log.IP = req.Headers["x-forwarded-for"]
-	log.UserAgent = req.Headers["user-agent"]
-	log.TTL = ttlValue
-
-	stringOld := strconv.Itoa(oldPoints)
-	stringNew := strconv.Itoa(newPoints)
-
-	log.Description = requester + " adjusted points of " + res.FirstName + " " + res.LastName + " from " + stringOld + " to " + stringNew
-	log.Timestamp = time.Now().Unix()
-	av, err := dynamodbattribute.MarshalMap(log)
-
-	if err != nil {
-		return errors.New("failed to marshal log")
-	}
-
-	input := &dynamodb.PutItemInput{
-		Item:      av,
-		TableName: aws.String(logTable),
-	}
-	_, err = dynaClient.PutItem(input)
-	if err != nil {
-		return errors.New("Could not dynamo put")
-	}
-
-	return nil
 }

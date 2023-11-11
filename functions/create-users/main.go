@@ -21,23 +21,6 @@ import (
 	"github.com/google/uuid"
 )
 
-var (
-	ErrorFailedToUnmarshalRecord  = "failed to unmarshal record"
-	ErrorFailedToFetchRecord      = "failed to fetch record"
-	ErrorFailedToFetchRecordID    = "failed to fetch record by uuid"
-	ErrorFailedToFetchRecordEmail = "failed to fetch record by email"
-	ErrorInvalidUserData          = "invalid user data"
-	ErrorInvalidEmail             = "invalid email"
-	ErrorInvalidFirstName         = "invalid first name"
-	ErrorInvalidLastName          = "invalid last name"
-	ErrorInvalidUUID              = "invalid UUID"
-	ErrorCouldNotMarshalItem      = "could not marshal item"
-	ErrorCouldNotDeleteItem       = "could not delete item"
-	ErrorCouldNotDynamoPutItem    = "could not dynamo put item"
-	ErrorUserAlreadyExists        = "user.User already exists"
-	ErrorUserDoesNotExist         = "user.User does not exist"
-)
-
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//get variables
 	region := os.Getenv("AWS_REGION")
@@ -94,25 +77,25 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, logTABLE st
 	//marshal body into user
 	if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
 		log.Println(err)
-		err = errors.New(ErrorInvalidUserData)
+		err = errors.New(types.ErrorInvalidUserData)
 		return nil, err
 	}
 	//marshal body into user
 	if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
-		err = errors.New(ErrorInvalidUserData)
+		err = errors.New(types.ErrorInvalidUserData)
 		return nil, err
 	}
 
 	//error checks
 	if !IsEmailValid(user.Email) {
-		err := errors.New(ErrorInvalidEmail)
+		err := errors.New(types.ErrorInvalidEmail)
 		return nil, err
 	}
 	if len(user.FirstName) == 0 {
-		return nil, errors.New(ErrorInvalidFirstName)
+		return nil, errors.New(types.ErrorInvalidFirstName)
 	}
 	if len(user.LastName) == 0 {
-		err := errors.New(ErrorInvalidLastName)
+		err := errors.New(types.ErrorInvalidLastName)
 		return nil, err
 	}
 	user.User_ID = uuid.NewString()
@@ -121,7 +104,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, logTABLE st
 	av, err := dynamodbattribute.MarshalMap(user.User)
 
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		return nil, errors.New(types.ErrorCouldNotMarshalItem)
 	}
 
 	input := &dynamodb.PutItemInput{
@@ -131,7 +114,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, logTABLE st
 
 	_, err = dynaClient.PutItem(input)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotDynamoPutItem)
+		return nil, errors.New(types.ErrorCouldNotDynamoPutItem)
 	}
 
 	createInput := &cognitoidentityprovider.AdminCreateUserInput{

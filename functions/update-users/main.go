@@ -18,16 +18,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
-var (
-	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
-	ErrorInvalidUserData         = "invalid user data"
-	ErrorInvalidUserID           = "invalid points id"
-	ErrorCouldNotMarshalItem     = "could not marshal item"
-	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
-	ErrorUserDoesNotExist        = "user.User does not exist"
-	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
-)
-
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//getting variables
 	user_id := request.QueryStringParameters["id"]
@@ -91,12 +81,12 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 	//unmarshal body into user struct
 	if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
-		return nil, errors.New(ErrorInvalidUserData)
+		return nil, errors.New(types.ErrorInvalidUserData)
 	}
 	user.User_ID = id
 
 	if user.User_ID == "" {
-		err := errors.New(ErrorInvalidUserID)
+		err := errors.New(types.ErrorInvalidUserID)
 		return nil, err
 	}
 
@@ -112,7 +102,7 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 	result, err := dynaClient.GetItem(checkUser)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecordID)
+		return nil, errors.New(types.ErrorFailedToFetchRecordID)
 	}
 
 	if result.Item == nil {
@@ -121,7 +111,7 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 	av, err := dynamodbattribute.MarshalMap(user)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		return nil, errors.New(types.ErrorCouldNotMarshalItem)
 	}
 
 	input := &dynamodb.PutItemInput{
@@ -131,7 +121,7 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 	_, err = dynaClient.PutItem(input)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotDynamoPutItem)
+		return nil, errors.New(types.ErrorCouldNotDynamoPutItem)
 	}
 
 	//cognito update

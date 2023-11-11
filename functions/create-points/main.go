@@ -17,15 +17,6 @@ import (
 	"github.com/google/uuid"
 )
 
-var (
-	ErrorInvalidUserData         = "invalid user data"
-	ErrorCouldNotMarshalItem     = "could not marshal item"
-	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
-	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
-	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
-	ErrorUserDoesNotExist        = "user does not exist"
-)
-
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//getting variables
 	region := os.Getenv("AWS_REGION")
@@ -72,11 +63,11 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 
 	//marshall body to point struct
 	if err := json.Unmarshal([]byte(req.Body), &userpoint); err != nil {
-		return nil, errors.New(ErrorInvalidUserData)
+		return nil, errors.New(types.ErrorInvalidUserData)
 	}
 
 	if userpoint.User_ID == "" {
-		err := errors.New(ErrorInvalidUserData)
+		err := errors.New(types.ErrorInvalidUserData)
 		return nil, err
 	}
 
@@ -92,11 +83,11 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 
 	result, err := dynaClient.GetItem(input)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecordID)
+		return nil, errors.New(types.ErrorFailedToFetchRecordID)
 	}
 
 	if result.Item == nil {
-		return nil, errors.New(ErrorUserDoesNotExist)
+		return nil, errors.New(types.ErrorUserDoesNotExist)
 	}
 
 	userpoint.Points_ID = uuid.NewString()
@@ -106,7 +97,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 	av, err := dynamodbattribute.MarshalMap(userpoint)
 
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		return nil, errors.New(types.ErrorCouldNotMarshalItem)
 	}
 
 	data := &dynamodb.PutItemInput{
@@ -117,7 +108,7 @@ func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTa
 	_, err = dynaClient.PutItem(data)
 
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotDynamoPutItem)
+		return nil, errors.New(types.ErrorCouldNotDynamoPutItem)
 	}
 
 	return &userpoint, nil

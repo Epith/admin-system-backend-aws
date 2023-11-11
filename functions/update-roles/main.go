@@ -1,8 +1,8 @@
 package main
 
 import (
-	"ascenda/utility"
 	"ascenda/types"
+	"ascenda/utility"
 	"encoding/json"
 	"errors"
 	"os"
@@ -14,15 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-)
-
-var (
-	ErrorInvalidRoleData       = "invalid role data"
-	ErrorInvalidRole           = "invalid role"
-	ErrorCouldNotMarshalItem   = "could not marshal item"
-	ErrorCouldNotDynamoPutItem = "could not dynamo put item"
-	ErrorRoleDoesNotExist      = "role does not exist"
-	ErrorFailedToFetchRecordID = "failed to fetch record by role"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -77,12 +68,12 @@ func UpdateRole(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 	//unmarshal body into role struct
 	if err := json.Unmarshal([]byte(req.Body), &role); err != nil {
-		return nil, errors.New(ErrorInvalidRoleData)
+		return nil, errors.New(types.ErrorInvalidRoleData)
 	}
 	role.Role = id
 
 	if role.Role == "" {
-		err := errors.New(ErrorInvalidRole)
+		err := errors.New(types.ErrorInvalidRole)
 		return nil, err
 	}
 
@@ -98,16 +89,16 @@ func UpdateRole(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 	result, err := dynaClient.GetItem(checkRole)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecordID)
+		return nil, errors.New(types.ErrorFailedToFetchRecordID)
 	}
 
 	if result.Item == nil {
-		return nil, errors.New(ErrorRoleDoesNotExist)
+		return nil, errors.New(types.ErrorRoleDoesNotExist)
 	}
 
 	av, err := dynamodbattribute.MarshalMap(role)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		return nil, errors.New(types.ErrorCouldNotMarshalItem)
 	}
 
 	input := &dynamodb.PutItemInput{
@@ -117,7 +108,7 @@ func UpdateRole(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 	_, err = dynaClient.PutItem(input)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotDynamoPutItem)
+		return nil, errors.New(types.ErrorCouldNotDynamoPutItem)
 	}
 
 	return &role, nil

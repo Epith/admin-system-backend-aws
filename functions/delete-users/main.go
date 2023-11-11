@@ -17,14 +17,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
-var (
-	ErrorInvalidUUID           = "invalid UUID"
-	ErrorCouldNotDeleteItem    = "could not delete item"
-	ErrorUserDoesNotExist      = "user does not exist"
-	ErrorFailedToFetchRecordID = "failed to fetch record by user id"
-	ErrorFailedToUnmarshal     = "failed to unmarshal record from db"
-)
-
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//getting variables
 	id := request.QueryStringParameters["id"]
@@ -91,17 +83,17 @@ func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, table
 
 	result, err := dynaClient.GetItem(checkUser)
 	if err != nil {
-		return errors.New(ErrorFailedToFetchRecordID)
+		return errors.New(types.ErrorFailedToFetchRecordID)
 	}
 
 	var user types.User
 	if result.Item == nil {
-		return errors.New(ErrorUserDoesNotExist)
+		return errors.New(types.ErrorUserDoesNotExist)
 	}
 
 	err = dynamodbattribute.UnmarshalMap(result.Item, &user)
 	if err != nil {
-		return errors.New(ErrorFailedToUnmarshal)
+		return errors.New(types.ErrorFailedToUnmarshal)
 	}
 
 	//attempt to delete user in cognito
@@ -126,7 +118,7 @@ func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, table
 	}
 	_, err = dynaClient.DeleteItem(input)
 	if err != nil {
-		return errors.New(ErrorCouldNotDeleteItem)
+		return errors.New(types.ErrorCouldNotDeleteItem)
 	}
 
 	//logging

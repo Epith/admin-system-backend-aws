@@ -17,18 +17,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
-var (
-	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
-	ErrorFailedToFetchRecord     = "failed to fetch record"
-	ErrorInvalidUserData         = "invalid user data"
-	ErrorInvalidPointsID         = "invalid points id"
-	ErrorCouldNotMarshalItem     = "could not marshal item"
-	ErrorCouldNotDeleteItem      = "could not delete item"
-	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
-	ErrorUserDoesNotExist        = "user.User does not exist"
-	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
-)
-
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//getting variables
 	user_id := request.QueryStringParameters["id"]
@@ -91,19 +79,19 @@ func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableNam
 	oldPoints := 0
 	//unmarshal body into userpoint struct
 	if err := json.Unmarshal([]byte(req.Body), &userpoint); err != nil {
-		return nil, errors.New(ErrorInvalidUserData)
+		return nil, errors.New(types.ErrorInvalidUserData)
 	}
 	userpoint.User_ID = user_id
 
 	if userpoint.Points_ID == "" {
-		err := errors.New(ErrorInvalidPointsID)
+		err := errors.New(types.ErrorInvalidPointsID)
 		return nil, err
 	}
 
 	//checking if userpoint exist
 	results, err := FetchUserPoint(user_id, req, tableName, dynaClient)
 	if err != nil {
-		return nil, errors.New(ErrorInvalidUserData)
+		return nil, errors.New(types.ErrorInvalidUserData)
 	}
 
 	var result = new(types.UserPoint)
@@ -115,12 +103,12 @@ func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableNam
 	}
 
 	if result.Points_ID != userpoint.Points_ID {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		return nil, errors.New(types.ErrorCouldNotMarshalItem)
 	}
 
 	av, err := dynamodbattribute.MarshalMap(result)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		return nil, errors.New(types.ErrorCouldNotMarshalItem)
 	}
 
 	//updating user point in dynamo
@@ -130,7 +118,7 @@ func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableNam
 	}
 	_, err = dynaClient.PutItem(input)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotDynamoPutItem)
+		return nil, errors.New(types.ErrorCouldNotDynamoPutItem)
 	}
 
 	//logging
@@ -159,17 +147,17 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 
 	result, err := dynaClient.Query(input)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecord)
+		return nil, errors.New(types.ErrorFailedToFetchRecord)
 	}
 
 	if result.Items == nil {
-		return nil, errors.New(ErrorUserDoesNotExist)
+		return nil, errors.New(types.ErrorUserDoesNotExist)
 	}
 
 	item := new([]types.UserPoint)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
+		return nil, errors.New(types.ErrorFailedToUnmarshalRecord)
 	}
 
 	return item, nil

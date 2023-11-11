@@ -17,11 +17,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
-var (
-	ErrorCouldNotMarshalItem = "could not marshal item"
-	ErrorCouldNotQueryDB     = "could not query db"
-)
-
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//get variables
 	status := request.QueryStringParameters["status"]
@@ -83,7 +78,7 @@ func FetchMakerRequestsByCheckerRoleAndStatus(checker_role, requestStatus, table
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotQueryDB)
+		return nil, errors.New(types.ErrorCouldNotQueryDB)
 	}
 
 	makerRequests := new([]types.MakerRequest)

@@ -16,16 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
-var (
-	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
-	ErrorInvalidRoleData         = "invalid role data"
-	ErrorInvalidRole             = "invalid role"
-	ErrorInvalidAccess           = "invalid access"
-	ErrorInvalidUUID             = "invalid UUID"
-	ErrorCouldNotMarshalItem     = "could not marshal item"
-	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
-)
-
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//get variables
 	region := os.Getenv("AWS_REGION")
@@ -71,13 +61,13 @@ func CreateRole(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 
 	//marshal body into role
 	if err := json.Unmarshal([]byte(req.Body), &role); err != nil {
-		err = errors.New(ErrorInvalidRoleData)
+		err = errors.New(types.ErrorInvalidRoleData)
 		return nil, err
 	}
 
 	//error checks
 	if len(role.Role) == 0 {
-		err := errors.New(ErrorInvalidRole)
+		err := errors.New(types.ErrorInvalidRole)
 		return nil, err
 	}
 
@@ -85,7 +75,7 @@ func CreateRole(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	av, err := dynamodbattribute.MarshalMap(role)
 
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		return nil, errors.New(types.ErrorCouldNotMarshalItem)
 	}
 
 	input := &dynamodb.PutItemInput{
@@ -95,7 +85,7 @@ func CreateRole(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 
 	_, err = dynaClient.PutItem(input)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotDynamoPutItem)
+		return nil, errors.New(types.ErrorCouldNotDynamoPutItem)
 	}
 
 	return &role, nil

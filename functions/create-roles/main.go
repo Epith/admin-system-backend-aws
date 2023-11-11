@@ -34,7 +34,14 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Get the parameter value
 	paramRole := "ROLES_TABLE"
-	ROLES_TABLE := utility.GetParameterValue(awsSession, paramRole)
+	outputRoles, err := utility.GetParameterValue(awsSession, paramRole)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting roles table parameter store"),
+		}, nil
+	}
+	ROLES_TABLE := *outputRoles.Parameter.Value
 
 	//calling create role in dynamo func
 	res, err := CreateRole(request, ROLES_TABLE, dynaClient)

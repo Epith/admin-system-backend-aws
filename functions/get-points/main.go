@@ -35,7 +35,14 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	//get parameter value
 	paramPoints := "POINTS_TABLE"
-	POINTS_TABLE := utility.GetParameterValue(awsSession, paramPoints)
+	outputPoints, err := utility.GetParameterValue(awsSession, paramPoints)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting points table parameter store"),
+		}, nil
+	}
+	POINTS_TABLE := *outputPoints.Parameter.Value
 
 	//check if user id is specified, if yes call get user point from dynamo func
 	if len(user_id) > 0 {

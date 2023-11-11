@@ -35,10 +35,24 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Get the parameter value
 	paramUser := "USER_TABLE"
-	USER_TABLE := utility.GetParameterValue(awsSession, paramUser)
+	outputUser, err := utility.GetParameterValue(awsSession, paramUser)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting user table parameter store"),
+		}, nil
+	}
+	USER_TABLE := *outputUser.Parameter.Value
 
 	paramPoints := "POINTS_TABLE"
-	POINTS_TABLE := utility.GetParameterValue(awsSession, paramPoints)
+	outputPoints, err := utility.GetParameterValue(awsSession, paramPoints)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting points table parameter store"),
+		}, nil
+	}
+	POINTS_TABLE := *outputPoints.Parameter.Value
 
 	//calling create point to dynamo func
 	res, err := CreateUserPoint(request, POINTS_TABLE, USER_TABLE, dynaClient)

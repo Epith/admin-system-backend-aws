@@ -33,9 +33,17 @@ func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGa
 	}
 	dynaClient := dynamodb.New(awsSession)
 	cognitoClient := cognitoidentityprovider.New(awsSession)
+
 	// Get the parameter value
 	paramRole := "ROLES_TABLE"
-	ROLES_TABLE := utility.GetParameterValue(awsSession, paramRole)
+	outputRoles, err := utility.GetParameterValue(awsSession, paramRole)
+	if err != nil {
+		return events.APIGatewayV2CustomAuthorizerSimpleResponse{
+			IsAuthorized: false,
+		}, nil
+	}
+	ROLES_TABLE := *outputRoles.Parameter.Value
+
 	//Check for user's role with cognito
 	role, err := FetchUserAttributes(accessToken, cognitoClient)
 	if err != nil {

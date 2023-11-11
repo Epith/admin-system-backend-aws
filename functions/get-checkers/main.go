@@ -37,7 +37,14 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	//get parameter value
 	paramMaker := "MAKER_TABLE"
-	MAKER_TABLE := utility.GetParameterValue(awsSession, paramMaker)
+	outputMaker, err := utility.GetParameterValue(awsSession, paramMaker)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting maker table parameter store"),
+		}, nil
+	}
+	MAKER_TABLE := *outputMaker.Parameter.Value
 
 	// filter by client role and maker request status
 	if len(role) > 0 && len(status) > 0 {

@@ -38,16 +38,44 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Get the parameter value
 	paramUser := "USER_TABLE"
-	USER_TABLE := utility.GetParameterValue(awsSession, paramUser)
+	outputUser, err := utility.GetParameterValue(awsSession, paramUser)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting user table parameter store"),
+		}, nil
+	}
+	USER_TABLE := *outputUser.Parameter.Value
 
 	paramTTL := "TTL"
-	TTL := utility.GetParameterValue(awsSession, paramTTL)
+	outputTTL, err := utility.GetParameterValue(awsSession, paramTTL)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting ttl parameter store"),
+		}, nil
+	}
+	TTL := *outputTTL.Parameter.Value
 
 	paramLog := "LOGS_TABLE"
-	LOGS_TABLE := utility.GetParameterValue(awsSession, paramLog)
+	outputLogs, err := utility.GetParameterValue(awsSession, paramLog)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting logs table parameter store"),
+		}, nil
+	}
+	LOGS_TABLE := *outputLogs.Parameter.Value
 
 	paramUserPool := "USER_POOL_ID"
-	USER_POOL_ID := utility.GetParameterValue(awsSession, paramUserPool)
+	outputUserPool, err := utility.GetParameterValue(awsSession, paramUserPool)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting user pool id parameter store"),
+		}, nil
+	}
+	USER_POOL_ID := *outputUserPool.Parameter.Value
 
 	if len(id) > 0 {
 		res := DeleteUser(id, role, request, USER_TABLE, LOGS_TABLE, TTL, dynaClient, cognitoClient, USER_POOL_ID)

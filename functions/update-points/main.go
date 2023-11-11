@@ -36,16 +36,44 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Get the parameter value
 	paramUser := "USER_TABLE"
-	USER_TABLE := utility.GetParameterValue(awsSession, paramUser)
+	outputUser, err := utility.GetParameterValue(awsSession, paramUser)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting user table parameter store"),
+		}, nil
+	}
+	USER_TABLE := *outputUser.Parameter.Value
 
 	paramTTL := "TTL"
-	TTL := utility.GetParameterValue(awsSession, paramTTL)
+	outputTTL, err := utility.GetParameterValue(awsSession, paramTTL)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting ttl parameter store"),
+		}, nil
+	}
+	TTL := *outputTTL.Parameter.Value
 
 	paramLog := "LOGS_TABLE"
-	LOGS_TABLE := utility.GetParameterValue(awsSession, paramLog)
+	outputLogs, err := utility.GetParameterValue(awsSession, paramLog)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting logs table parameter store"),
+		}, nil
+	}
+	LOGS_TABLE := *outputLogs.Parameter.Value
 
 	paramPoints := "POINTS_TABLE"
-	POINTS_TABLE := utility.GetParameterValue(awsSession, paramPoints)
+	outputPoints, err := utility.GetParameterValue(awsSession, paramPoints)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting points table parameter store"),
+		}, nil
+	}
+	POINTS_TABLE := *outputPoints.Parameter.Value
 
 	//checking if user id is specified, if yes then update user in dynamo func
 	if len(user_id) > 0 {

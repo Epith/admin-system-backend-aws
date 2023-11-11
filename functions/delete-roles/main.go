@@ -33,7 +33,14 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Get the parameter value
 	paramRole := "ROLES_TABLE"
-	ROLES_TABLE := utility.GetParameterValue(awsSession, paramRole)
+	outputRoles, err := utility.GetParameterValue(awsSession, paramRole)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting roles table parameter store"),
+		}, nil
+	}
+	ROLES_TABLE := *outputRoles.Parameter.Value
 
 	//check if role is supplied, if yes call delete role dynamo func
 	if len(role) > 0 {

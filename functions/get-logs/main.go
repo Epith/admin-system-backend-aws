@@ -35,7 +35,14 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Get the parameter value
 	paramLog := "LOGS_TABLE"
-	LOGS_TABLE := utility.GetParameterValue(awsSession, paramLog)
+	outputLogs, err := utility.GetParameterValue(awsSession, paramLog)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 404,
+			Body:       string("Error getting logs table parameter store"),
+		}, nil
+	}
+	LOGS_TABLE := *outputLogs.Parameter.Value
 
 	//check if id specified, if yes get single log from dynamo
 	if len(id) > 0 {

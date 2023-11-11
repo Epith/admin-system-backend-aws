@@ -1,14 +1,12 @@
 package main
 
 import (
-	"ascenda/functions/utility"
 	"ascenda/types"
+	"ascenda/utility"
 	"encoding/json"
 	"errors"
 	"log"
 	"os"
-	"strconv"
-	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -18,17 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"github.com/google/uuid"
-)
-
-var (
-	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
-	ErrorInvalidUserData         = "invalid user data"
-	ErrorInvalidUserID           = "invalid points id"
-	ErrorCouldNotMarshalItem     = "could not marshal item"
-	ErrorCouldNotDynamoPutItem   = "could not dynamo put item"
-	ErrorUserDoesNotExist        = "user.User does not exist"
-	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -94,12 +81,12 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 	//unmarshal body into user struct
 	if err := json.Unmarshal([]byte(req.Body), &user); err != nil {
-		return nil, errors.New(ErrorInvalidUserData)
+		return nil, errors.New(types.ErrorInvalidUserData)
 	}
 	user.User_ID = id
 
 	if user.User_ID == "" {
-		err := errors.New(ErrorInvalidUserID)
+		err := errors.New(types.ErrorInvalidUserID)
 		return nil, err
 	}
 
@@ -115,7 +102,7 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 	result, err := dynaClient.GetItem(checkUser)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecordID)
+		return nil, errors.New(types.ErrorFailedToFetchRecordID)
 	}
 
 	if result.Item == nil {
@@ -124,7 +111,7 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 	av, err := dynamodbattribute.MarshalMap(user)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		return nil, errors.New(types.ErrorCouldNotMarshalItem)
 	}
 
 	input := &dynamodb.PutItemInput{
@@ -134,7 +121,7 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 	_, err = dynaClient.PutItem(input)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotDynamoPutItem)
+		return nil, errors.New(types.ErrorCouldNotDynamoPutItem)
 	}
 
 	//cognito update
@@ -163,7 +150,7 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 	}
 
 	//logging
-	if logErr := sendLogs(req, dynaClient, logTable, ttl, user.FirstName, user.LastName); logErr != nil {
+	if logErr := utility.SendUpdateUserLogs(req, dynaClient, logTable, ttl, user.FirstName, user.LastName); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
 
@@ -172,45 +159,4 @@ func UpdateUser(id string, req events.APIGatewayProxyRequest, tableName string, 
 
 func main() {
 	lambda.Start(handler)
-}
-
-func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, logTable string, ttl string,
-	firstName string, lastName string) error {
-	// Calculate the TTL value (one month from now)
-	ttlNum, err := strconv.Atoi(ttl)
-	if err != nil {
-		return errors.New("invalid ttl")
-	}
-
-	now := time.Now()
-	oneWeekFromNow := now.AddDate(0, 0, ttlNum)
-	ttlValue := oneWeekFromNow.Unix()
-
-	//requester
-	requester := req.QueryStringParameters["requester"]
-
-	//create log struct
-	log := types.Log{}
-	log.Log_ID = uuid.NewString()
-	log.IP = req.Headers["x-forwarded-for"]
-	log.UserAgent = req.Headers["user-agent"]
-	log.TTL = ttlValue
-	log.Description = requester + " updated user information for " + firstName + " " + lastName
-	log.Timestamp = time.Now().Unix()
-	av, err := dynamodbattribute.MarshalMap(log)
-
-	if err != nil {
-		return errors.New("failed to marshal log")
-	}
-
-	input := &dynamodb.PutItemInput{
-		Item:      av,
-		TableName: aws.String(logTable),
-	}
-	_, err = dynaClient.PutItem(input)
-	if err != nil {
-		return errors.New("Could not dynamo put")
-	}
-
-	return nil
 }

@@ -1,13 +1,11 @@
 package main
 
 import (
-	"ascenda/functions/utility"
 	"ascenda/types"
+	"ascenda/utility"
 	"errors"
 	"log"
 	"os"
-	"strconv"
-	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -17,15 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"github.com/google/uuid"
-)
-
-var (
-	ErrorInvalidUUID           = "invalid UUID"
-	ErrorCouldNotDeleteItem    = "could not delete item"
-	ErrorUserDoesNotExist      = "user does not exist"
-	ErrorFailedToFetchRecordID = "failed to fetch record by user id"
-	ErrorFailedToUnmarshal     = "failed to unmarshal record from db"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -94,17 +83,17 @@ func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, table
 
 	result, err := dynaClient.GetItem(checkUser)
 	if err != nil {
-		return errors.New(ErrorFailedToFetchRecordID)
+		return errors.New(types.ErrorFailedToFetchRecordID)
 	}
 
 	var user types.User
 	if result.Item == nil {
-		return errors.New(ErrorUserDoesNotExist)
+		return errors.New(types.ErrorUserDoesNotExist)
 	}
 
 	err = dynamodbattribute.UnmarshalMap(result.Item, &user)
 	if err != nil {
-		return errors.New(ErrorFailedToUnmarshal)
+		return errors.New(types.ErrorFailedToUnmarshal)
 	}
 
 	//attempt to delete user in cognito
@@ -129,11 +118,11 @@ func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, table
 	}
 	_, err = dynaClient.DeleteItem(input)
 	if err != nil {
-		return errors.New(ErrorCouldNotDeleteItem)
+		return errors.New(types.ErrorCouldNotDeleteItem)
 	}
 
 	//logging
-	if logErr := sendLogs(req, dynaClient, logTABLE, ttl, user.FirstName, user.LastName); logErr != nil {
+	if logErr := utility.SendDeleteUserLogs(req, dynaClient, logTABLE, ttl, user.FirstName, user.LastName); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
 
@@ -142,44 +131,4 @@ func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, table
 
 func main() {
 	lambda.Start(handler)
-}
-
-func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, logTABLE string, ttl string, firstName string, lastName string) error {
-	// Calculate the TTL value (one month from now)
-	ttlNum, err := strconv.Atoi(ttl)
-	if err != nil {
-		return errors.New("invalid ttl")
-	}
-
-	now := time.Now()
-	oneWeekFromNow := now.AddDate(0, 0, ttlNum)
-	ttlValue := oneWeekFromNow.Unix()
-
-	//requester
-	requester := req.QueryStringParameters["requester"]
-
-	//create log struct
-	log := types.Log{}
-	log.Log_ID = uuid.NewString()
-	log.IP = req.Headers["x-forwarded-for"]
-	log.UserAgent = req.Headers["user-agent"]
-	log.TTL = ttlValue
-	log.Description = requester + " deleted user " + firstName + " " + lastName
-	log.Timestamp = time.Now().Unix()
-	av, err := dynamodbattribute.MarshalMap(log)
-
-	if err != nil {
-		return errors.New("failed to marshal log")
-	}
-
-	input := &dynamodb.PutItemInput{
-		Item:      av,
-		TableName: aws.String(logTABLE),
-	}
-	_, err = dynaClient.PutItem(input)
-	if err != nil {
-		return errors.New("Could not dynamo put")
-	}
-
-	return nil
 }

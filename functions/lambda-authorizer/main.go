@@ -1,8 +1,8 @@
 package main
 
 import (
-	"ascenda/functions/utility"
 	"ascenda/types"
+	"ascenda/utility"
 	"errors"
 	"log"
 	"os"
@@ -16,12 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-)
-
-var (
-	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
-	ErrorFailedToFetchRecord     = "failed to fetch record"
-	ErrorFailedToFetchRecordID   = "failed to fetch record by uuid"
 )
 
 func handler(request events.APIGatewayV2CustomAuthorizerV2Request) (events.APIGatewayV2CustomAuthorizerSimpleResponse, error) {
@@ -78,7 +72,7 @@ func FetchUserAttributes(accessToken string, cognitoClient *cognitoidentityprovi
 	result, err := cognitoClient.GetUser(input)
 	if err != nil {
 		log.Println(err)
-		return "", errors.New(ErrorFailedToFetchRecordID)
+		return "", errors.New(types.ErrorFailedToFetchRecordID)
 	}
 
 	var role string
@@ -103,13 +97,13 @@ func GetAccessByRole(role, tableName string, dynaClient dynamodbiface.DynamoDBAP
 
 	result, err := dynaClient.GetItem(input)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecordID)
+		return nil, errors.New(types.ErrorFailedToFetchRecordID)
 	}
 
 	item := new(types.Role)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
-		return nil, errors.New(ErrorFailedToUnmarshalRecord)
+		return nil, errors.New(types.ErrorFailedToUnmarshalRecord)
 	}
 	log.Println(item)
 	return item, nil

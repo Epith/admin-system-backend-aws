@@ -1,8 +1,8 @@
 package main
 
 import (
-	"ascenda/functions/utility"
 	"ascenda/types"
+	"ascenda/utility"
 	"encoding/json"
 	"errors"
 	"os"
@@ -14,14 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-)
-
-var (
-	ErrorFailedToFetchRecord   = "failed to fetch record"
-	ErrorCouldNotMarshalItem   = "could not marshal item"
-	ErrorCouldNotQueryDB       = "could not query db"
-	ErrorMakerReqDoesNotExist  = "maker request id does not exist"
-	ErrorCouldNotDynamoPutItem = "could not dynamo put item"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -119,17 +111,17 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotQueryDB)
+		return nil, errors.New(types.ErrorCouldNotQueryDB)
 	}
 
 	if len(result.Items) == 0 {
-		return nil, errors.New(ErrorMakerReqDoesNotExist)
+		return nil, errors.New(types.ErrorMakerReqDoesNotExist)
 	}
 
 	makerRequests := new([]types.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotMarshalItem)
+		return nil, errors.New(types.ErrorCouldNotMarshalItem)
 	}
 
 	return utility.FormatMakerRequest(*makerRequests), nil
@@ -160,7 +152,7 @@ func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dyn
 	result, err := dynaClient.Scan(input)
 
 	if err != nil {
-		return nil, errors.New(ErrorFailedToFetchRecord)
+		return nil, errors.New(types.ErrorFailedToFetchRecord)
 	}
 	item := new([]types.MakerRequest)
 
@@ -200,7 +192,7 @@ func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName stri
 
 	result, err := dynaClient.Query(queryInput)
 	if err != nil {
-		return nil, errors.New(ErrorCouldNotQueryDB)
+		return nil, errors.New(types.ErrorCouldNotQueryDB)
 	}
 
 	makerRequests := new([]types.MakerRequest)

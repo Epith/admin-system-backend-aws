@@ -1,9 +1,9 @@
 package main
 
 import (
+	"ascenda/functions/utility"
 	"encoding/json"
 	"errors"
-	"log"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -13,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"github.com/aws/aws-sdk-go/service/ssm"
 )
 
 type User struct {
@@ -54,7 +53,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Get the parameter value
 	paramName := "USER_TABLE"
-	USER_TABLE := getParameterValue(awsSession, paramName)
+	USER_TABLE := utility.GetParameterValue(awsSession, paramName)
 
 	//check if id specified, if yes get single user from dynamo
 	if len(id) > 0 {
@@ -169,20 +168,4 @@ func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 
 func main() {
 	lambda.Start(handler)
-}
-
-func getParameterValue(session *session.Session, paramName string) string {
-	// Create an SSM client
-	svc := ssm.New(session)
-	// Get the parameter value
-	paramValue, err := svc.GetParameter(&ssm.GetParameterInput{
-		Name:           aws.String(paramName),
-		WithDecryption: aws.Bool(true),
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	response := *paramValue.Parameter.Value
-
-	return response
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ascenda/functions/utility"
 	"errors"
 	"log"
 	"os"
@@ -48,7 +49,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	id := request.QueryStringParameters["id"]
 	role := request.QueryStringParameters["role"]
 	region := os.Getenv("AWS_REGION")
-	USER_TABLE := os.Getenv("USER_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -63,8 +63,21 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	dynaClient := dynamodb.New(awsSession)
 	cognitoClient := cognitoidentityprovider.New(awsSession)
 
+	// Get the parameter value
+	paramUser := "USER_TABLE"
+	USER_TABLE := utility.GetParameterValue(awsSession, paramUser)
+
+	paramTTL := "TTL"
+	TTL := utility.GetParameterValue(awsSession, paramTTL)
+
+	paramLog := "LOGS_TABLE"
+	LOGS_TABLE := utility.GetParameterValue(awsSession, paramLog)
+
+	paramUserPool := "USER_POOL_ID"
+	USER_POOL_ID := utility.GetParameterValue(awsSession, paramUserPool)
+
 	if len(id) > 0 {
-		res := DeleteUser(id, role, request, USER_TABLE, dynaClient, cognitoClient)
+		res := DeleteUser(id, role, request, USER_TABLE, LOGS_TABLE, TTL, dynaClient, cognitoClient, USER_POOL_ID)
 		if res != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
@@ -83,7 +96,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI, cognitoClient *cognitoidentityprovider.CognitoIdentityProvider) error {
+func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, tableName string, logTABLE string, ttl string,
+	dynaClient dynamodbiface.DynamoDBAPI, cognitoClient *cognitoidentityprovider.CognitoIdentityProvider, userPoolID string) error {
 	//check if user exist
 	checkUser := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
@@ -112,7 +126,7 @@ func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, table
 	//attempt to delete user in cognito
 	cognitoInput := &cognitoidentityprovider.AdminDeleteUserInput{
 		Username:   aws.String(id),
-		UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
+		UserPoolId: aws.String(userPoolID),
 	}
 
 	_, cognitoErr := cognitoClient.AdminDeleteUser(cognitoInput)
@@ -135,7 +149,7 @@ func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, table
 	}
 
 	//logging
-	if logErr := sendLogs(req, dynaClient, user.FirstName, user.LastName); logErr != nil {
+	if logErr := sendLogs(req, dynaClient, logTABLE, ttl, user.FirstName, user.LastName); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
 
@@ -146,10 +160,9 @@ func main() {
 	lambda.Start(handler)
 }
 
-func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, firstName string, lastName string) error {
+func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, logTABLE string, ttl string, firstName string, lastName string) error {
 	// Calculate the TTL value (one month from now)
-	TTL := os.Getenv("TTL")
-	ttlNum, err := strconv.Atoi(TTL)
+	ttlNum, err := strconv.Atoi(ttl)
 	if err != nil {
 		return errors.New("invalid ttl")
 	}
@@ -159,7 +172,6 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	ttlValue := oneWeekFromNow.Unix()
 
 	//requester
-	LOGS_TABLE := os.Getenv("LOGS_TABLE")
 	requester := req.QueryStringParameters["requester"]
 
 	//create log struct
@@ -178,7 +190,7 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 
 	input := &dynamodb.PutItemInput{
 		Item:      av,
-		TableName: aws.String(LOGS_TABLE),
+		TableName: aws.String(logTABLE),
 	}
 	_, err = dynaClient.PutItem(input)
 	if err != nil {

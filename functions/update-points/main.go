@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ascenda/functions/utility"
 	"encoding/json"
 	"errors"
 	"log"
@@ -57,7 +58,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	//getting variables
 	user_id := request.QueryStringParameters["id"]
 	region := os.Getenv("AWS_REGION")
-	POINTS_TABLE := os.Getenv("POINTS_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -71,9 +71,22 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 	dynaClient := dynamodb.New(awsSession)
 
+	// Get the parameter value
+	paramUser := "USER_TABLE"
+	USER_TABLE := utility.GetParameterValue(awsSession, paramUser)
+
+	paramTTL := "TTL"
+	TTL := utility.GetParameterValue(awsSession, paramTTL)
+
+	paramLog := "LOGS_TABLE"
+	LOGS_TABLE := utility.GetParameterValue(awsSession, paramLog)
+
+	paramPoints := "POINTS_TABLE"
+	POINTS_TABLE := utility.GetParameterValue(awsSession, paramPoints)
+
 	//checking if user id is specified, if yes then update user in dynamo func
 	if len(user_id) > 0 {
-		res, err := UpdateUserPoint(user_id, request, POINTS_TABLE, dynaClient)
+		res, err := UpdateUserPoint(user_id, request, POINTS_TABLE, USER_TABLE, LOGS_TABLE, TTL, dynaClient)
 		if err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
@@ -97,7 +110,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 }
 
-func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
+func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, userTable string, logTable string, ttl string,
+	dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
 	var userpoint UserPoint
 	oldPoints := 0
 	//unmarshal body into userpoint struct
@@ -145,7 +159,7 @@ func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableNam
 	}
 
 	//logging
-	if logErr := sendLogs(req, dynaClient, user_id, oldPoints, userpoint.Points); logErr != nil {
+	if logErr := sendLogs(req, dynaClient, userTable, logTable, ttl, user_id, oldPoints, userpoint.Points); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
 
@@ -219,17 +233,16 @@ func main() {
 	lambda.Start(handler)
 }
 
-func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, userID string, oldPoints int, newPoints int) error {
+func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, userTable string, logTable, ttl string,
+	userID string, oldPoints int, newPoints int) error {
 	// Calculate the TTL value (one month from now)
-	TTL := os.Getenv("TTL")
-	ttlNum, err := strconv.Atoi(TTL)
+	ttlNum, err := strconv.Atoi(ttl)
 	if err != nil {
 		return errors.New("invalid ttl")
 	}
 
 	//get updated user points name
-	USER_TABLE := os.Getenv("USER_TABLE")
-	res, err := FetchUserByID(userID, req, USER_TABLE, dynaClient)
+	res, err := FetchUserByID(userID, req, userTable, dynaClient)
 	if err != nil {
 		log.Println(err)
 		return errors.New("failed to get user")
@@ -240,7 +253,6 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	ttlValue := oneWeekFromNow.Unix()
 
 	//requester
-	LOGS_TABLE := os.Getenv("LOGS_TABLE")
 	requester := req.QueryStringParameters["requester"]
 
 	//create log struct
@@ -263,7 +275,7 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 
 	input := &dynamodb.PutItemInput{
 		Item:      av,
-		TableName: aws.String(LOGS_TABLE),
+		TableName: aws.String(logTable),
 	}
 	_, err = dynaClient.PutItem(input)
 	if err != nil {

@@ -52,8 +52,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	dynaClient := dynamodb.New(awsSession)
 
 	// Get the parameter value
-	paramName := "USER_TABLE"
-	USER_TABLE := utility.GetParameterValue(awsSession, paramName)
+	paramUser := "USER_TABLE"
+	USER_TABLE := utility.GetParameterValue(awsSession, paramUser)
 
 	//check if id specified, if yes get single user from dynamo
 	if len(id) > 0 {

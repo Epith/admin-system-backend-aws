@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ascenda/functions/utility"
 	"errors"
 	"os"
 
@@ -29,7 +30,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	//getting variables
 	role := request.QueryStringParameters["role"]
 	region := os.Getenv("AWS_REGION")
-	ROLES_TABLE := os.Getenv("ROLES_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -42,6 +42,10 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
+
+	// Get the parameter value
+	paramRole := "ROLES_TABLE"
+	ROLES_TABLE := utility.GetParameterValue(awsSession, paramRole)
 
 	//check if role is supplied, if yes call delete role dynamo func
 	if len(role) > 0 {

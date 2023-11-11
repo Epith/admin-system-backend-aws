@@ -27,7 +27,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	//get variables
 	req_id := request.QueryStringParameters["req_id"]
 	region := os.Getenv("AWS_REGION")
-	MAKER_TABLE := os.Getenv("MAKER_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -40,6 +39,10 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, nil
 	}
 	dynaClient := dynamodb.New(awsSession)
+
+	//get parameter value
+	paramMaker := "MAKER_TABLE"
+	MAKER_TABLE := utility.GetParameterValue(awsSession, paramMaker)
 
 	// get by req id
 	if len(req_id) > 0 {

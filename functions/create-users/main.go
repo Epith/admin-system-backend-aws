@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ascenda/functions/utility"
 	"encoding/json"
 	"errors"
 	"log"
@@ -63,7 +64,6 @@ var (
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//get variables
 	region := os.Getenv("AWS_REGION")
-	USER_TABLE := os.Getenv("USER_TABLE")
 
 	//setting up dynamo session
 	awsSession, err := session.NewSession(&aws.Config{
@@ -78,7 +78,20 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	dynaClient := dynamodb.New(awsSession)
 	cognitoClient := cognitoidentityprovider.New(awsSession)
 
-	res, err := CreateUser(request, USER_TABLE, dynaClient, cognitoClient)
+	// Get the parameter value
+	paramUser := "USER_TABLE"
+	USER_TABLE := utility.GetParameterValue(awsSession, paramUser)
+
+	paramTTL := "TTL"
+	TTL := utility.GetParameterValue(awsSession, paramTTL)
+
+	paramLog := "LOGS_TABLE"
+	LOGS_TABLE := utility.GetParameterValue(awsSession, paramLog)
+
+	paramUserPool := "USER_POOL_ID"
+	USER_POOL_ID := utility.GetParameterValue(awsSession, paramUserPool)
+
+	res, err := CreateUser(request, USER_TABLE, LOGS_TABLE, TTL, dynaClient, cognitoClient, USER_POOL_ID)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 404,
@@ -94,7 +107,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI, cognitoClient *cognitoidentityprovider.CognitoIdentityProvider) (
+func CreateUser(req events.APIGatewayProxyRequest, tableName string, logTABLE string, ttl string, dynaClient dynamodbiface.DynamoDBAPI,
+	cognitoClient *cognitoidentityprovider.CognitoIdentityProvider, userPoolID string) (
 	*User,
 	error,
 ) {
@@ -170,7 +184,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 				Value: aws.String(user.Role),
 			},
 		},
-		UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
+		UserPoolId: aws.String(userPoolID),
 		Username:   aws.String(user.User_ID),
 	}
 
@@ -184,7 +198,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 		Password:   aws.String(user.Password),
 		Permanent:  aws.Bool(true),
 		Username:   aws.String(user.User_ID),
-		UserPoolId: aws.String("ap-southeast-1_jpZj8DWJB"),
+		UserPoolId: aws.String(userPoolID),
 	}
 
 	_, passwdErr := cognitoClient.AdminSetUserPassword(passwdInput)
@@ -196,7 +210,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	EmailVerification(user.Email)
 
 	//logging
-	if logErr := sendLogs(req, dynaClient, user.FirstName, user.LastName, user.Role); logErr != nil {
+	if logErr := sendLogs(req, dynaClient, logTABLE, ttl, user.FirstName, user.LastName, user.Role); logErr != nil {
 		log.Println("Logging err :", logErr)
 	}
 
@@ -217,10 +231,9 @@ func IsEmailValid(email string) bool {
 	return true
 }
 
-func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, firstName string, lastName string, role string) error {
+func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI, logTABLE string, ttl string, firstName string, lastName string, role string) error {
 	// Calculate the TTL value (one month from now)
-	TTL := os.Getenv("TTL")
-	ttlNum, err := strconv.Atoi(TTL)
+	ttlNum, err := strconv.Atoi(ttl)
 	if err != nil {
 		return errors.New("invalid ttl")
 	}
@@ -230,7 +243,6 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	ttlValue := oneWeekFromNow.Unix()
 
 	//requester
-	LOGS_TABLE := os.Getenv("LOGS_TABLE")
 	requester := req.QueryStringParameters["requester"]
 
 	//create log struct
@@ -254,7 +266,7 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 
 	input := &dynamodb.PutItemInput{
 		Item:      av,
-		TableName: aws.String(LOGS_TABLE),
+		TableName: aws.String(logTABLE),
 	}
 	_, err = dynaClient.PutItem(input)
 	if err != nil {

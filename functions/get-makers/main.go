@@ -2,6 +2,7 @@ package main
 
 import (
 	"ascenda/functions/utility"
+	"ascenda/types"
 	"encoding/json"
 	"errors"
 	"os"
@@ -107,7 +108,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.ReturnMakerRequest, error) {
+func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]types.ReturnMakerRequest, error) {
 	queryInput := &dynamodb.QueryInput{
 		TableName:              aws.String(tableName),
 		KeyConditionExpression: aws.String("req_id = :req_id"),
@@ -125,7 +126,7 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 		return nil, errors.New(ErrorMakerReqDoesNotExist)
 	}
 
-	makerRequests := new([]utility.MakerRequest)
+	makerRequests := new([]types.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
 		return nil, errors.New(ErrorCouldNotMarshalItem)
@@ -135,7 +136,7 @@ func FetchMakerRequest(requestID, tableName string, req events.APIGatewayProxyRe
 
 }
 
-func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) (*utility.ReturnData, error) {
+func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) (*types.ReturnMakerData, error) {
 	//get all user points with pagination of limit 100
 	keyReq := req.QueryStringParameters["keyReq"]
 	keyRole := req.QueryStringParameters["keyRole"]
@@ -161,14 +162,14 @@ func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dyn
 	if err != nil {
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
-	item := new([]utility.MakerRequest)
+	item := new([]types.MakerRequest)
 
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
 	if err != nil {
 		return nil, errors.New(utility.ErrorCouldNotUnmarshalItem)
 	}
 
-	itemWithKey := new(utility.ReturnData)
+	itemWithKey := new(types.ReturnMakerData)
 	formattedMakerRequests := utility.FormatMakerRequest(*item)
 	itemWithKey.Data = formattedMakerRequests
 
@@ -182,7 +183,7 @@ func FetchMakerRequests(tableName string, req events.APIGatewayProxyRequest, dyn
 	return itemWithKey, nil
 }
 
-func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]utility.ReturnMakerRequest, error) {
+func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) ([]types.ReturnMakerRequest, error) {
 	queryInput := &dynamodb.QueryInput{
 		TableName:              aws.String(tableName),
 		IndexName:              aws.String("maker_id-request_status-index"),
@@ -202,7 +203,7 @@ func FetchMakerRequestsByMakerIdAndStatus(makerID, requestStatus, tableName stri
 		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
-	makerRequests := new([]utility.MakerRequest)
+	makerRequests := new([]types.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
 		return nil, errors.New(utility.ErrorCouldNotUnmarshalItem)

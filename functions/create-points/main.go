@@ -2,6 +2,7 @@ package main
 
 import (
 	"ascenda/functions/utility"
+	"ascenda/types"
 	"encoding/json"
 	"errors"
 	"os"
@@ -15,20 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/google/uuid"
 )
-
-type UserPoint struct {
-	User_ID   string `json:"user_id"`
-	Points_ID string `json:"points_id"`
-	Points    int    `json:"points"`
-}
-
-type User struct {
-	Email     string `json:"email"`
-	User_ID   string `json:"user_id"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Role      string `json:"role"`
-}
 
 var (
 	ErrorInvalidUserData         = "invalid user data"
@@ -80,8 +67,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTable string, dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
-	var userpoint UserPoint
+func CreateUserPoint(req events.APIGatewayProxyRequest, tableName string, userTable string, dynaClient dynamodbiface.DynamoDBAPI) (*types.UserPoint, error) {
+	var userpoint types.UserPoint
 
 	//marshall body to point struct
 	if err := json.Unmarshal([]byte(req.Body), &userpoint); err != nil {

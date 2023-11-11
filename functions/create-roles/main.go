@@ -2,6 +2,7 @@ package main
 
 import (
 	"ascenda/functions/utility"
+	"ascenda/types"
 	"encoding/json"
 	"errors"
 	"os"
@@ -14,11 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
-
-type Role struct {
-	Role   string              `json:"role"`
-	Access map[string][]string `json:"access"`
-}
 
 var (
 	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
@@ -68,10 +64,10 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 }
 
 func CreateRole(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (
-	*Role,
+	*types.Role,
 	error,
 ) {
-	var role Role
+	var role types.Role
 
 	//marshal body into role
 	if err := json.Unmarshal([]byte(req.Body), &role); err != nil {

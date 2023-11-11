@@ -13,11 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
-type Role struct {
-	Role   string              `json:"role"`
-	Access map[string][]string `json:"access"`
-}
-
 var (
 	ErrorInvalidRole             = "invalid Role"
 	ErrorCouldNotDeleteItem      = "could not delete item"

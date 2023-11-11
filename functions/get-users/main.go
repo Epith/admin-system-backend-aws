@@ -2,6 +2,7 @@ package main
 
 import (
 	"ascenda/functions/utility"
+	"ascenda/types"
 	"encoding/json"
 	"errors"
 	"os"
@@ -14,19 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
-
-type User struct {
-	Email     string `json:"email"`
-	User_ID   string `json:"user_id"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Role      string `json:"role"`
-}
-
-type ReturnData struct {
-	Data []User `json:"data"`
-	Key  string `json:"key"`
-}
 
 var (
 	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
@@ -91,7 +79,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
+func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.User, error) {
 	//get single user from dynamo
 	input := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
@@ -111,7 +99,7 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 		return nil, errors.New("user does not exist")
 	}
 
-	item := new(User)
+	item := new(types.User)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
@@ -120,13 +108,13 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 	return item, nil
 }
 
-func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*ReturnData, error) {
+func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.ReturnUserData, error) {
 	//get all users with pagination of limit 100
 	key := req.QueryStringParameters["key"]
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
 
-	item := new([]User)
-	itemWithKey := new(ReturnData)
+	item := new([]types.User)
+	itemWithKey := new(types.ReturnUserData)
 
 	input := &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
@@ -146,7 +134,7 @@ func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	}
 
 	for _, i := range result.Items {
-		user := new(User)
+		user := new(types.User)
 		err := dynamodbattribute.UnmarshalMap(i, user)
 		if err != nil {
 			return nil, err

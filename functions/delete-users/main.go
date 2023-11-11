@@ -2,6 +2,7 @@ package main
 
 import (
 	"ascenda/functions/utility"
+	"ascenda/types"
 	"errors"
 	"log"
 	"os"
@@ -18,23 +19,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/google/uuid"
 )
-
-type User struct {
-	Email     string `json:"email"`
-	User_ID   string `json:"user_id"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Role      string `json:"role"`
-}
-
-type Log struct {
-	Log_ID      string `json:"log_id"`
-	IP          string `json:"ip"`
-	Description string `json:"description"`
-	UserAgent   string `json:"user_agent"`
-	Timestamp   int64  `json:"timestamp"`
-	TTL         int64  `json:"ttl"`
-}
 
 var (
 	ErrorInvalidUUID           = "invalid UUID"
@@ -113,7 +97,7 @@ func DeleteUser(id string, role string, req events.APIGatewayProxyRequest, table
 		return errors.New(ErrorFailedToFetchRecordID)
 	}
 
-	var user User
+	var user types.User
 	if result.Item == nil {
 		return errors.New(ErrorUserDoesNotExist)
 	}
@@ -175,7 +159,7 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	requester := req.QueryStringParameters["requester"]
 
 	//create log struct
-	log := Log{}
+	log := types.Log{}
 	log.Log_ID = uuid.NewString()
 	log.IP = req.Headers["x-forwarded-for"]
 	log.UserAgent = req.Headers["user-agent"]

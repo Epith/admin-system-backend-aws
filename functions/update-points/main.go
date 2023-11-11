@@ -2,6 +2,7 @@ package main
 
 import (
 	"ascenda/functions/utility"
+	"ascenda/types"
 	"encoding/json"
 	"errors"
 	"log"
@@ -18,29 +19,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/google/uuid"
 )
-
-type UserPoint struct {
-	User_ID   string `json:"user_id"`
-	Points_ID string `json:"points_id"`
-	Points    int    `json:"points"`
-}
-
-type User struct {
-	Email     string `json:"email"`
-	User_ID   string `json:"user_id"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Role      string `json:"role"`
-}
-
-type Log struct {
-	Log_ID      string `json:"log_id"`
-	IP          string `json:"ip"`
-	Description string `json:"description"`
-	UserAgent   string `json:"user_agent"`
-	Timestamp   int64  `json:"timestamp"`
-	TTL         int64  `json:"ttl"`
-}
 
 var (
 	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
@@ -111,8 +89,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 }
 
 func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, userTable string, logTable string, ttl string,
-	dynaClient dynamodbiface.DynamoDBAPI) (*UserPoint, error) {
-	var userpoint UserPoint
+	dynaClient dynamodbiface.DynamoDBAPI) (*types.UserPoint, error) {
+	var userpoint types.UserPoint
 	oldPoints := 0
 	//unmarshal body into userpoint struct
 	if err := json.Unmarshal([]byte(req.Body), &userpoint); err != nil {
@@ -131,7 +109,7 @@ func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableNam
 		return nil, errors.New(ErrorInvalidUserData)
 	}
 
-	var result = new(UserPoint)
+	var result = new(types.UserPoint)
 	for _, v := range *results {
 		if v.Points_ID == userpoint.Points_ID {
 			oldPoints = v.Points
@@ -166,7 +144,7 @@ func UpdateUserPoint(user_id string, req events.APIGatewayProxyRequest, tableNam
 	return result, nil
 }
 
-func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]UserPoint, error) {
+func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]types.UserPoint, error) {
 	//get single user point
 	input := &dynamodb.QueryInput{
 		TableName: aws.String(tableName),
@@ -191,7 +169,7 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 		return nil, errors.New(ErrorUserDoesNotExist)
 	}
 
-	item := new([]UserPoint)
+	item := new([]types.UserPoint)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
 	if err != nil {
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
@@ -200,7 +178,7 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 	return item, nil
 }
 
-func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*User, error) {
+func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.User, error) {
 	//get single user from dynamo
 	input := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
@@ -220,7 +198,7 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 		return nil, errors.New("user does not exist")
 	}
 
-	item := new(User)
+	item := new(types.User)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
@@ -256,7 +234,7 @@ func sendLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbiface.Dynamo
 	requester := req.QueryStringParameters["requester"]
 
 	//create log struct
-	log := Log{}
+	log := types.Log{}
 	log.Log_ID = uuid.NewString()
 	log.IP = req.Headers["x-forwarded-for"]
 	log.UserAgent = req.Headers["user-agent"]

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"ascenda/functions/utility"
+	"ascenda/types"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -65,7 +66,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func FetchMakerRequestsByCheckerRoleAndStatus(checker_role, requestStatus, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) (*[]utility.MakerRequest, error) {
+func FetchMakerRequestsByCheckerRoleAndStatus(checker_role, requestStatus, tableName string, req events.APIGatewayProxyRequest, dynaClient dynamodbiface.DynamoDBAPI) (*[]types.MakerRequest, error) {
 	queryInput := &dynamodb.QueryInput{
 		TableName:              aws.String(tableName),
 		IndexName:              aws.String("checker_role-request_status-index"),
@@ -85,7 +86,7 @@ func FetchMakerRequestsByCheckerRoleAndStatus(checker_role, requestStatus, table
 		return nil, errors.New(ErrorCouldNotQueryDB)
 	}
 
-	makerRequests := new([]utility.MakerRequest)
+	makerRequests := new([]types.MakerRequest)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, makerRequests)
 	if err != nil {
 		return nil, errors.New(utility.ErrorCouldNotUnmarshalItem)

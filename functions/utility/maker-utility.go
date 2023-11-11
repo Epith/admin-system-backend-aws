@@ -1,7 +1,7 @@
 package utility
 
 import (
-	"encoding/json"
+	"ascenda/types"
 	"errors"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -15,40 +15,7 @@ var (
 	ErrorCouldNotUnmarshalItem = "could not unmarshal maker request"
 )
 
-type MakerRequest struct {
-	RequestUUID   string          `json:"req_id"`
-	CheckerRole   string          `json:"checker_role"`
-	MakerUUID     string          `json:"maker_id"`
-	CheckerUUID   string          `json:"checker_id"`
-	RequestStatus string          `json:"request_status"`
-	ResourceType  string          `json:"resource_type"`
-	RequestData   json.RawMessage `json:"request_data"`
-}
-
-type ReturnMakerRequest struct {
-	RequestUUID   string          `json:"req_id"`
-	CheckerRole   []string        `json:"checker_role"`
-	MakerUUID     string          `json:"maker_id"`
-	CheckerUUID   string          `json:"checker_id"`
-	RequestStatus string          `json:"request_status"`
-	ResourceType  string          `json:"resource_type"`
-	RequestData   json.RawMessage `json:"request_data"`
-}
-
-type NewMakerRequest struct {
-	CheckerRoles []string        `json:"checker_roles"`
-	MakerUUID    string          `json:"maker_id"`
-	ResourceType string          `json:"resource_type"`
-	RequestData  json.RawMessage `json:"request_data"`
-}
-
-type ReturnData struct {
-	Data    []ReturnMakerRequest `json:"data"`
-	KeyReq  string               `json:"key_req"`
-	KeyRole string               `json:"key_role"`
-}
-
-func BatchWriteToDynamoDB(roleCount int, makerRequests []MakerRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) ([]ReturnMakerRequest, error) {
+func BatchWriteToDynamoDB(roleCount int, makerRequests []types.MakerRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) ([]types.ReturnMakerRequest, error) {
 	writeRequests := make([]*dynamodb.WriteRequest, roleCount)
 
 	for i, request := range makerRequests {
@@ -79,12 +46,12 @@ func BatchWriteToDynamoDB(roleCount int, makerRequests []MakerRequest, tableName
 	return FormatMakerRequest(makerRequests), nil
 }
 
-func FormatMakerRequest(makerRequests []MakerRequest) []ReturnMakerRequest {
-	makerRequestsMap := make(map[string]ReturnMakerRequest)
+func FormatMakerRequest(makerRequests []types.MakerRequest) []types.ReturnMakerRequest {
+	makerRequestsMap := make(map[string]types.ReturnMakerRequest)
 	for _, request := range makerRequests {
 		resRequest := makerRequestsMap[request.RequestUUID]
 		if resRequest.RequestUUID == "" {
-			makerRequestsMap[request.RequestUUID] = ReturnMakerRequest{
+			makerRequestsMap[request.RequestUUID] = types.ReturnMakerRequest{
 				RequestUUID:   request.RequestUUID,
 				CheckerRole:   []string{request.CheckerRole},
 				MakerUUID:     request.MakerUUID,
@@ -98,7 +65,7 @@ func FormatMakerRequest(makerRequests []MakerRequest) []ReturnMakerRequest {
 			makerRequestsMap[request.RequestUUID] = resRequest
 		}
 	}
-	retRequests := make([]ReturnMakerRequest, 0, len(makerRequestsMap))
+	retRequests := make([]types.ReturnMakerRequest, 0, len(makerRequestsMap))
 	for _, value := range makerRequestsMap {
 		retRequests = append(retRequests, value)
 	}
@@ -106,13 +73,13 @@ func FormatMakerRequest(makerRequests []MakerRequest) []ReturnMakerRequest {
 	return retRequests
 }
 
-func DeconstructPostMakerRequest(postMakerRequest NewMakerRequest) []MakerRequest {
+func DeconstructPostMakerRequest(postMakerRequest types.NewMakerRequest) []types.MakerRequest {
 	roleCount := len(postMakerRequest.CheckerRoles)
-	makerRequests := make([]MakerRequest, roleCount)
+	makerRequests := make([]types.MakerRequest, roleCount)
 	reqId := uuid.NewString()
 
 	for i := 0; i < roleCount; i++ {
-		var makerRequest MakerRequest
+		var makerRequest types.MakerRequest
 
 		makerRequest.RequestUUID = reqId
 		makerRequest.RequestStatus = "pending"

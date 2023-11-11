@@ -2,6 +2,7 @@ package main
 
 import (
 	"ascenda/functions/utility"
+	"ascenda/types"
 	"encoding/json"
 	"errors"
 	"os"
@@ -14,16 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
-
-type Role struct {
-	Role   string              `json:"role"`
-	Access map[string][]string `json:"access"`
-}
-
-type ReturnData struct {
-	Data []Role `json:"data"`
-	Key  string `json:"key"`
-}
 
 var (
 	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
@@ -88,7 +79,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func FetchRoleByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*Role, error) {
+func FetchRoleByID(id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.Role, error) {
 	//get single role from dynamo
 	input := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
@@ -108,7 +99,7 @@ func FetchRoleByID(id string, req events.APIGatewayProxyRequest, tableName strin
 		return nil, errors.New("role does not exist")
 	}
 
-	item := new(Role)
+	item := new(types.Role)
 	err = dynamodbattribute.UnmarshalMap(result.Item, item)
 	if err != nil {
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
@@ -117,13 +108,13 @@ func FetchRoleByID(id string, req events.APIGatewayProxyRequest, tableName strin
 	return item, nil
 }
 
-func FetchRoles(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*ReturnData, error) {
+func FetchRoles(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.ReturnRoleData, error) {
 	//get all roles with pagination of limit 100
 	key := req.QueryStringParameters["key"]
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
 
-	item := new([]Role)
-	itemWithKey := new(ReturnData)
+	item := new([]types.Role)
+	itemWithKey := new(types.ReturnRoleData)
 
 	input := &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
@@ -143,7 +134,7 @@ func FetchRoles(req events.APIGatewayProxyRequest, tableName string, dynaClient 
 	}
 
 	for _, i := range result.Items {
-		role := new(Role)
+		role := new(types.Role)
 		err := dynamodbattribute.UnmarshalMap(i, role)
 		if err != nil {
 			return nil, err

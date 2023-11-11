@@ -2,6 +2,7 @@ package main
 
 import (
 	"ascenda/functions/utility"
+	"ascenda/types"
 	"encoding/json"
 	"errors"
 	"os"
@@ -14,18 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
-
-type UserPoint struct {
-	User_ID   string `json:"user_id"`
-	Points_ID string `json:"points_id"`
-	Points    int    `json:"points"`
-}
-
-type ReturnData struct {
-	Data     []UserPoint `json:"data"`
-	KeyUser  string      `json:"key_user"`
-	KeyPoint string      `json:"key_point"`
-}
 
 var (
 	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
@@ -87,7 +76,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}, nil
 }
 
-func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]UserPoint, error) {
+func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*[]types.UserPoint, error) {
 	//getting single single user point
 	input := &dynamodb.QueryInput{
 		TableName: aws.String(tableName),
@@ -112,7 +101,7 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 		return nil, errors.New("user point does not exist")
 	}
 
-	item := new([]UserPoint)
+	item := new([]types.UserPoint)
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, item)
 	if err != nil {
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
@@ -121,14 +110,14 @@ func FetchUserPoint(user_id string, req events.APIGatewayProxyRequest, tableName
 	return item, nil
 }
 
-func FetchUsersPoint(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*ReturnData, error) {
+func FetchUsersPoint(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.ReturnUserPointData, error) {
 	//get all user points with pagination of limit 100
 	keyUser := req.QueryStringParameters["keyUser"]
 	keyPoint := req.QueryStringParameters["keyPoint"]
 	lastEvaluatedKey := make(map[string]*dynamodb.AttributeValue)
 
-	item := new([]UserPoint)
-	itemWithKey := new(ReturnData)
+	item := new([]types.UserPoint)
+	itemWithKey := new(types.ReturnUserPointData)
 
 	input := &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
@@ -152,7 +141,7 @@ func FetchUsersPoint(req events.APIGatewayProxyRequest, tableName string, dynaCl
 	}
 
 	for _, i := range result.Items {
-		userPoint := new(UserPoint)
+		userPoint := new(types.UserPoint)
 		err := dynamodbattribute.UnmarshalMap(i, userPoint)
 		if err != nil {
 			return nil, err

@@ -16,7 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/ses"
-	"github.com/aws/aws-sdk-go/service/ssm"
 )
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -318,20 +317,4 @@ func sendEmail(recipientEmail string, req events.APIGatewayProxyRequest, dynaCli
 
 	log.Printf("Send email to: %v", recipientEmail)
 	return nil
-}
-
-func getParameterValue(session *session.Session, paramName string) string {
-	// Create an SSM client
-	svc := ssm.New(session)
-	// Get the parameter value
-	paramValue, err := svc.GetParameter(&ssm.GetParameterInput{
-		Name:           aws.String(paramName),
-		WithDecryption: aws.Bool(true),
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	response := *paramValue.Parameter.Value
-
-	return response
 }

@@ -43,7 +43,7 @@ Resources:
   LambdaAuthorizer:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/lambda-authorizer/
+      CodeUri: functions/administrative/lambda-authorizer/
       Handler: bootstrap
       Role: arn:aws:iam::163683790602:role/AscendaUserLambdaRole
     Metadata:
@@ -52,7 +52,7 @@ Resources:
   GetMakerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/get-makers/
+      CodeUri: functions/maker/get-makers/
       Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
       Events:
         Api:
@@ -67,7 +67,7 @@ Resources:
   CreateMakerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/create-makers/
+      CodeUri: functions/maker/create-makers/
       Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
       Events:
         Api:
@@ -82,7 +82,7 @@ Resources:
   GetCheckerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/get-checkers/
+      CodeUri: functions/maker/get-checkers/
       Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
       Events:
         Api:
@@ -97,7 +97,7 @@ Resources:
   UpdateCheckerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/update-checkers/
+      CodeUri: functions/maker/update-checkers/
       Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
       Events:
         Api:
@@ -112,7 +112,7 @@ Resources:
   GetPointsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/get-points/
+      CodeUri: functions/point/get-points/
       Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
@@ -127,7 +127,7 @@ Resources:
   UpdatePointsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/update-points/
+      CodeUri: functions/point/update-points/
       Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
@@ -142,7 +142,7 @@ Resources:
   CreatePointsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/create-points/
+      CodeUri: functions/point/create-points/
       Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
@@ -217,7 +217,7 @@ Resources:
   GetLogsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/get-logs/
+      CodeUri: functions/administrative/get-logs/
       Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
@@ -232,7 +232,7 @@ Resources:
   GetRolesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/get-roles/
+      CodeUri: functions/role/get-roles/
       Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
@@ -247,7 +247,7 @@ Resources:
   CreateRolesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/create-roles/
+      CodeUri: functions/role/create-roles/
       Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
@@ -262,7 +262,7 @@ Resources:
   UpdateRolesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/update-roles/
+      CodeUri: functions/role/update-roles/
       Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
@@ -277,7 +277,7 @@ Resources:
   DeleteRolesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/delete-roles/
+      CodeUri: functions/role/delete-roles/
       Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:

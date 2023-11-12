@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set the base branch to develop
-base_branch="develop"
+base_branch="main"
 
 # Get the current branch
 current_branch=$(git rev-parse --abbrev-ref HEAD)

@@ -19,6 +19,7 @@ import (
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//get variables
 	id := request.QueryStringParameters["id"]
+	role := request.QueryStringParameters["role"]
 	region := os.Getenv("AWS_REGION")
 
 	//setting up dynamo session
@@ -51,6 +52,23 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			return events.APIGatewayProxyResponse{
 				StatusCode: 404,
 				Body:       string("Error getting user by id"),
+			}, nil
+		}
+		body, _ := json.Marshal(res)
+		stringBody := string(body)
+		return events.APIGatewayProxyResponse{
+			Body:       string(stringBody),
+			StatusCode: 200,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+		}, nil
+	}
+
+	if len(role) > 0 {
+		res, err := FetchUsersByRole(role, request, USER_TABLE, dynaClient)
+		if err != nil {
+			return events.APIGatewayProxyResponse{
+				StatusCode: 404,
+				Body:       string("Error getting user by role"),
 			}, nil
 		}
 		body, _ := json.Marshal(res)
@@ -107,6 +125,34 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 	}
 
 	return item, nil
+}
+
+func FetchUsersByRole(role string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) ([]types.User, error) {
+	//get users with a certain role
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(tableName),
+		IndexName:              aws.String("role-index"),
+		KeyConditionExpression: aws.String("#role = :role"),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":role": {S: aws.String(role)},
+		},
+		ExpressionAttributeNames: map[string]*string{
+			"#role": aws.String("role"),
+		},
+	}
+
+	result, err := dynaClient.Query(input)
+
+	if err != nil {
+		return nil, errors.New(types.ErrorFailedToFetchRecordID)
+	}
+	users := new([]types.User)
+	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, users)
+	if err != nil {
+		return nil, errors.New(types.ErrorFailedToUnmarshalRecord)
+	}
+
+	return *users, nil
 }
 
 func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.ReturnUserData, error) {

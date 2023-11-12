@@ -127,8 +127,10 @@ func FetchUserByID(id string, req events.APIGatewayProxyRequest, tableName strin
 	return item, nil
 }
 
-func FetchUsersByRole(role string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) ([]types.User, error) {
+func FetchUsersByRole(role string, req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.ReturnUserData, error) {
 	//get users with a certain role
+	itemWithKey := new(types.ReturnUserData)
+
 	input := &dynamodb.QueryInput{
 		TableName:              aws.String(tableName),
 		IndexName:              aws.String("role-index"),
@@ -142,7 +144,6 @@ func FetchUsersByRole(role string, req events.APIGatewayProxyRequest, tableName 
 	}
 
 	result, err := dynaClient.Query(input)
-
 	if err != nil {
 		return nil, errors.New(types.ErrorFailedToFetchRecordID)
 	}
@@ -152,7 +153,10 @@ func FetchUsersByRole(role string, req events.APIGatewayProxyRequest, tableName 
 		return nil, errors.New(types.ErrorFailedToUnmarshalRecord)
 	}
 
-	return *users, nil
+	itemWithKey.Data = *users
+	itemWithKey.Key = ""
+
+	return itemWithKey, nil
 }
 
 func FetchUsers(req events.APIGatewayProxyRequest, tableName string, dynaClient dynamodbiface.DynamoDBAPI) (*types.ReturnUserData, error) {

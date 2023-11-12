@@ -24,6 +24,7 @@ invoke-get:
 
 clean:
 	@rm $(foreach function,${FUNCTIONS}, functions/${function}/bootstrap)
+	@rm $(foreach function,${USER_FUNCTIONS}, functions/user/${function}/bootstrap)
 
 deploy:
 	@sam deploy --stack-name ${STACK_NAME};

@@ -5,7 +5,7 @@ USER_FUNCTIONS := get-users create-users update-users delete-users
 REGION := ap-southeast-1
 
 build-user:
-	${MAKE} ${MAKEOPTS} $(foreach userFunction,${USER_FUNCTIONS}, build-${userFunction})
+	${MAKE} ${MAKEOPTS} $(foreach userFunction,${USER_FUNCTIONS}, build-user-${userFunction})
 
 build-user-%:
 	cd functions/user/$* && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 ${GO} build -o bootstrap

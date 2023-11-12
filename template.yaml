@@ -157,7 +157,7 @@ Resources:
   GetUsersFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/get-users/
+      CodeUri: functions/user/get-users/
       Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
       Events:
         Api:
@@ -172,7 +172,7 @@ Resources:
   CreateUsersFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/create-users/
+      CodeUri: functions/user/create-users/
       Role: arn:aws:iam::163683790602:role/AscendaCreateUserLambdaRole
       Events:
         Api:
@@ -187,7 +187,7 @@ Resources:
   UpdateUsersFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/update-users/
+      CodeUri: functions/user/update-users/
       Role: arn:aws:iam::163683790602:role/AscendaUserLambdaRole
       Events:
         Api:
@@ -202,7 +202,7 @@ Resources:
   DeleteUsersFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/delete-users/
+      CodeUri: functions/user/delete-users/
       Role: arn:aws:iam::163683790602:role/AscendaUserLambdaRole
       Events:
         Api:

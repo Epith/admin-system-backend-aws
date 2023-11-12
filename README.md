@@ -15,20 +15,29 @@ Ascenda Loyalty program SAM Backend
 You can use the following commands at the root of this repository to build and deploy this project:
 
 ```bash
-# Compile and prepare Lambda functions
+# Compile and prepare all Lambda functions
 make build
 
-# Deploy the functions on AWS
+# Compile and prepare Lambda functions for specific API
+make build-<API folder>
+
+# Deploy the functions on AWS w/ confirmations
 make deploy
+
+# Deploy the functions on AWS w/o confirmations
+make deploy-auto
+
+# Build and Deploy the all functions on AWS w/o confirmations
+make deploy-full-auto
+
+# Go mod tidy the project
+make tidy
 
 # Clean up program binaries
 make clean
 
-# Delete the functions on aws
+# Delete the SAM Stack on aws
 make delete
-
-# Clean up program binaries
-make star-local
 ```
 
 ## Load Test

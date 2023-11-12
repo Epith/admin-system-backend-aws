@@ -1,4 +1,2 @@
 .env*
-.terraform*
-*.tfstate*
-bootstrap
+*bootstrap

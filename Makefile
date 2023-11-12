@@ -37,11 +37,7 @@ build-administrative:
 build-administrative-%:
 	cd functions/administrative/$* && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 ${GO} build -o bootstrap
 
-start-local:
-	@sam local start-api --env-vars env-vars.json
-
-invoke-get:
-	@sam local invoke --env-vars env-vars.json GetProductsFunction
+build: build-user build-point build-maker build-role build-administrative
 
 clean:
 	@rm $(foreach function,${USER_FUNCTIONS}, functions/user/${function}/bootstrap)
@@ -49,10 +45,14 @@ clean:
 	@rm $(foreach function,${MAKER_FUNCTIONS}, functions/maker/${function}/bootstrap)
 	@rm $(foreach function,${ROLE_FUNCTIONS}, functions/role/${function}/bootstrap)
 	@rm $(foreach function,${ADMINISTRATIVE_FUNCTIONS}, functions/administrative/${function}/bootstrap)
+
 deploy:
 	@sam deploy --stack-name ${STACK_NAME};
 
-deploy-auto: build-user build-point build-maker build-role build-administrative
+deploy-auto: 
+	@sam deploy --stack-name ${STACK_NAME} --no-confirm-changeset --no-fail-on-empty-changeset;
+
+deploy-full-auto: build-user build-point build-maker build-role build-administrative
 	@sam deploy --stack-name ${STACK_NAME} --no-confirm-changeset --no-fail-on-empty-changeset;
 
 delete:

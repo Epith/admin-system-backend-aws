@@ -1,14 +1,29 @@
-# Ascenda Loyalty
+# Ascenda Loyalty Program
 
 Ascenda Loyalty program SAM Backend
 
-## 🏗️ Deployment and testing
+## Requirements
 
-### Requirements
-
-* [Go](https://go.dev)
-* The [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) for deploying to the cloud
+* [Go](https://go.dev), the language used for the project
+* [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) for deploying to the cloud
 * [Artillery](https://artillery.io/) for load-testing the application
+* [Make](https://www.gnu.org/software/make/) for building the Lambda Go handlers on custom runtime
+
+## Initial Setup
+
+```bash
+# Set the AWS Region and CF stack name within the Makefile
+# STACK_NAME := CF_STACK_NAME
+# REGION := PROJECT_REGION
+
+# Initial build of all the Go handlers
+make build
+
+# Manual deployment of SAM application
+make deploy
+```
+
+## Deployment and testing
 
 ### Commands
 
@@ -48,3 +63,4 @@ with the following command:
 ```bash
 make load-test
 ```
+

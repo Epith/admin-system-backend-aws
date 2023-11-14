@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -63,6 +64,7 @@ func SendCreateUserLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbif
 
 	//requester
 	requester := req.QueryStringParameters["requester"]
+	s := strings.Split(requester, "-")
 
 	//create log struct
 	log := types.Log{}
@@ -72,9 +74,9 @@ func SendCreateUserLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbif
 	log.TTL = ttlValue
 
 	if role != "" {
-		log.Description = requester + " enrolled " + role + " " + firstName + " " + lastName
+		log.Description = s[0] + " " + s[1] + " enrolled " + role + " " + firstName + " " + lastName
 	} else {
-		log.Description = requester + " enrolled user " + firstName + " " + lastName
+		log.Description = s[0] + " " + s[1] + " enrolled user " + firstName + " " + lastName
 	}
 	log.Timestamp = time.Now().Unix()
 	av, err := dynamodbattribute.MarshalMap(log)
@@ -109,6 +111,7 @@ func SendDeleteUserLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbif
 
 	//requester
 	requester := req.QueryStringParameters["requester"]
+	s := strings.Split(requester, "-")
 
 	//create log struct
 	log := types.Log{}
@@ -116,7 +119,7 @@ func SendDeleteUserLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbif
 	log.IP = req.Headers["x-forwarded-for"]
 	log.UserAgent = req.Headers["user-agent"]
 	log.TTL = ttlValue
-	log.Description = requester + " deleted user " + firstName + " " + lastName
+	log.Description = s[0] + " " + s[1] + " deleted user " + firstName + " " + lastName
 	log.Timestamp = time.Now().Unix()
 	av, err := dynamodbattribute.MarshalMap(log)
 
@@ -157,6 +160,7 @@ func SendUpdatePointLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbi
 
 	//requester
 	requester := req.QueryStringParameters["requester"]
+	s := strings.Split(requester, "-")
 
 	//create log struct
 	log := types.Log{}
@@ -168,7 +172,7 @@ func SendUpdatePointLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbi
 	stringOld := strconv.Itoa(oldPoints)
 	stringNew := strconv.Itoa(newPoints)
 
-	log.Description = requester + " adjusted points of " + res.FirstName + " " + res.LastName + " from " + stringOld + " to " + stringNew
+	log.Description = s[0] + " " + s[1] + " adjusted points of " + res.FirstName + " " + res.LastName + " from " + stringOld + " to " + stringNew
 	log.Timestamp = time.Now().Unix()
 	av, err := dynamodbattribute.MarshalMap(log)
 
@@ -202,6 +206,7 @@ func SendUpdateUserLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbif
 
 	//requester
 	requester := req.QueryStringParameters["requester"]
+	s := strings.Split(requester, "-")
 
 	//create log struct
 	log := types.Log{}
@@ -209,7 +214,7 @@ func SendUpdateUserLogs(req events.APIGatewayProxyRequest, dynaClient dynamodbif
 	log.IP = req.Headers["x-forwarded-for"]
 	log.UserAgent = req.Headers["user-agent"]
 	log.TTL = ttlValue
-	log.Description = requester + " updated user information for " + firstName + " " + lastName
+	log.Description = s[0] + " " + s[1] + " updated user information for " + firstName + " " + lastName
 	log.Timestamp = time.Now().Unix()
 	av, err := dynamodbattribute.MarshalMap(log)
 

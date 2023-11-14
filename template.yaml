@@ -12,53 +12,52 @@ Globals:
     Timeout: 5
 
 Resources:
-
   AscendaApi:
-    Type: AWS::Serverless::HttpApi
+    Type: AWS::Serverless::Api
     Properties:
       StageName: Prod
-      CorsConfiguration:
-        AllowMethods: ['GET', 'POST', 'PUT', 'DELETE']
-        AllowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key', 'X-Amz-Security-Token']
-        AllowOrigins: ['*']
-      Auth:
-        DefaultAuthorizer: Lambda-Authorizer
-        Authorizers:
-          Lambda-Authorizer:
-            AuthorizerPayloadFormatVersion: 2.0
-            FunctionArn: !GetAtt LambdaAuthorizer.Arn
-            FunctionInvokeRole: arn:aws:iam::163683790602:role/api_gateway_auth_invocation
-            Identity:
-              Headers:
-                - Authorization
-              ReauthorizeEvery: 300
-            EnableSimpleResponses: true
+      # Cors:
+      #   AllowMethods: ['GET', 'POST', 'PUT', 'DELETE']
+      #   AllowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key', 'X-Amz-Security-Token']
+      #   AllowOrigins: ['*']
+      # Auth:
+      #   DefaultAuthorizer: Lambda-Authorizer
+      #   Authorizers:
+      #     Lambda-Authorizer:
+      #       AuthorizerPayloadFormatVersion: 2.0
+      #       FunctionArn: !GetAtt LambdaAuthorizer.Arn
+      #       FunctionInvokeRole: !Sub arn:aws:iam::${AWS::AccountId}:role/api_gateway_auth_invocation
+      #       Identity:
+      #         Headers:
+      #           - Authorization
+      #         ReauthorizeEvery: 300
+      #       EnableSimpleResponses: true
       Domain:
         DomainName: itsag2t2.com
-        CertificateArn: arn:aws:acm:ap-southeast-1:163683790602:certificate/17266c11-0d22-4f17-b63f-92e2227151c1
+        CertificateArn: !Sub arn:aws:acm:ap-southeast-1:${AWS::AccountId}:certificate/17266c11-0d22-4f17-b63f-92e2227151c1
         Route53:
           HostedZoneId: Z01378052RMMURP5MHP9D
           EvaluateTargetHealth: false
 
-  LambdaAuthorizer:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: functions/administrative/lambda-authorizer/
-      Handler: bootstrap
-      Role: arn:aws:iam::163683790602:role/AscendaUserLambdaRole
-    Metadata:
-      BuildMethod: makefile
+  # LambdaAuthorizer:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     CodeUri: functions/administrative/lambda-authorizer/
+  #     Handler: bootstrap
+  #     Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaUserLambdaRole
+  #   Metadata:
+  #     BuildMethod: makefile
 
   GetMakerFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/maker/get-makers/
-      Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaMakerLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /makers
             Method: GET
     Metadata:
@@ -68,12 +67,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/maker/create-makers/
-      Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaMakerLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /makers
             Method: POST
     Metadata:
@@ -83,12 +82,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/maker/get-checkers/
-      Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaMakerLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /checkers
             Method: GET
     Metadata:
@@ -98,12 +97,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/maker/update-checkers/
-      Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaMakerLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /checkers
             Method: PUT
     Metadata:
@@ -113,12 +112,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/point/get-points/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /points
             Method: GET
     Metadata:
@@ -128,12 +127,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/point/update-points/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /points
             Method: PUT
     Metadata:
@@ -143,12 +142,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/point/create-points/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /points
             Method: POST
     Metadata:
@@ -158,12 +157,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/user/get-users/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /users
             Method: GET
     Metadata:
@@ -173,12 +172,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/user/create-users/
-      Role: arn:aws:iam::163683790602:role/AscendaCreateUserLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaCreateUserLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /users
             Method: POST
     Metadata:
@@ -188,12 +187,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/user/update-users/
-      Role: arn:aws:iam::163683790602:role/AscendaUserLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaUserLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /users
             Method: PUT
     Metadata:
@@ -203,12 +202,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/user/delete-users/
-      Role: arn:aws:iam::163683790602:role/AscendaUserLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaUserLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /users
             Method: DELETE
     Metadata:
@@ -218,12 +217,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/administrative/get-logs/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /logs
             Method: GET
     Metadata:
@@ -233,12 +232,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/role/get-roles/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /roles
             Method: GET
     Metadata:
@@ -248,12 +247,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/role/create-roles/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /roles
             Method: POST
     Metadata:
@@ -263,12 +262,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/role/update-roles/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /roles
             Method: PUT
     Metadata:
@@ -278,12 +277,12 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/role/delete-roles/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref AscendaApi
+            RestApiId: !Ref AscendaApi
             Path: /roles
             Method: DELETE
     Metadata:

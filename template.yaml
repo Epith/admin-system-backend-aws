@@ -12,7 +12,6 @@ Globals:
     Timeout: 5
 
 Resources:
-
   AscendaApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -27,7 +26,7 @@ Resources:
           Lambda-Authorizer:
             AuthorizerPayloadFormatVersion: 2.0
             FunctionArn: !GetAtt LambdaAuthorizer.Arn
-            FunctionInvokeRole: arn:aws:iam::163683790602:role/api_gateway_auth_invocation
+            FunctionInvokeRole: !Sub arn:aws:iam::${AWS::AccountId}:role/api_gateway_auth_invocation
             Identity:
               Headers:
                 - Authorization
@@ -35,17 +34,23 @@ Resources:
             EnableSimpleResponses: true
       Domain:
         DomainName: itsag2t2.com
-        CertificateArn: arn:aws:acm:ap-southeast-1:163683790602:certificate/17266c11-0d22-4f17-b63f-92e2227151c1
+        CertificateArn: !Sub arn:aws:acm:ap-southeast-1:${AWS::AccountId}:certificate/17266c11-0d22-4f17-b63f-92e2227151c1
         Route53:
           HostedZoneId: Z01378052RMMURP5MHP9D
           EvaluateTargetHealth: false
+  
+  # WebACLAssociation:
+  #   Type: AWS::WAFv2::WebACLAssociation
+  #   Properties:
+  #     ResourceArn: !Sub arn:aws:apigateway:${AWS::Region}::/restapis/${AscendaApi}/stages/Prod
+  #     WebACLArn: !Sub arn:aws:wafv2:${AWS::Region}:${AWS::AccountId}:regional/webacl/ascenda_waf_web_acl/0a4b1932-03bf-43f7-9d5c-c69cc186afa4
 
   LambdaAuthorizer:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/administrative/lambda-authorizer/
       Handler: bootstrap
-      Role: arn:aws:iam::163683790602:role/AscendaUserLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaUserLambdaRole
     Metadata:
       BuildMethod: makefile
 
@@ -53,7 +58,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/maker/get-makers/
-      Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaMakerLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -68,7 +73,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/maker/create-makers/
-      Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaMakerLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -83,7 +88,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/maker/get-checkers/
-      Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaMakerLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -98,7 +103,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/maker/update-checkers/
-      Role: arn:aws:iam::163683790602:role/AscendaMakerLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaMakerLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -113,7 +118,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/point/get-points/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -128,7 +133,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/point/update-points/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -143,7 +148,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/point/create-points/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -158,7 +163,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/user/get-users/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -173,7 +178,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/user/create-users/
-      Role: arn:aws:iam::163683790602:role/AscendaCreateUserLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaCreateUserLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -188,7 +193,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/user/update-users/
-      Role: arn:aws:iam::163683790602:role/AscendaUserLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaUserLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -203,7 +208,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/user/delete-users/
-      Role: arn:aws:iam::163683790602:role/AscendaUserLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaUserLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -218,7 +223,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/administrative/get-logs/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -233,7 +238,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/role/get-roles/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -248,7 +253,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/role/create-roles/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -263,7 +268,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/role/update-roles/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi
@@ -278,7 +283,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/role/delete-roles/
-      Role: arn:aws:iam::163683790602:role/AscendaLambdaRole
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AscendaLambdaRole
       Events:
         Api:
           Type: HttpApi

@@ -5,6 +5,7 @@ import (
 	"ascenda/utility"
 	"encoding/json"
 	"errors"
+	"log"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -16,26 +17,29 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
+var dynaClient *dynamodb.DynamoDB
+var awsSession *session.Session
+
+func init() {
+	region := os.Getenv("AWS_REGION")
+	awsSession, err := session.NewSession(&aws.Config{
+		Region: aws.String(region)})
+	if err != nil {
+		log.Println(err)
+	}
+	dynaClient = dynamodb.New(awsSession)
+	log.Println(awsSession)
+	log.Println(dynaClient)
+}
+
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	//get variables
 	id := request.QueryStringParameters["id"]
 	role := request.QueryStringParameters["role"]
-	region := os.Getenv("AWS_REGION")
-
-	//setting up dynamo session
-	awsSession, err := session.NewSession(&aws.Config{
-		Region: aws.String(region)})
-
-	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: 404,
-			Body:       string("Error setting up aws session"),
-		}, nil
-	}
-	dynaClient := dynamodb.New(awsSession)
 
 	// Get the parameter value
 	paramUser := "USER_TABLE"
+	log.Println(awsSession)
 	outputUser, err := utility.GetParameterValue(awsSession, paramUser)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
